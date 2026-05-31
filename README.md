@@ -1,5 +1,7 @@
 # RobCo Patcher VR
 
+![RobCo Patcher VR](assets/robco.png)
+
 RobCo Patcher is a patcher which allows mod authors and users to modify game data without the use of plugins.
 You can modify ammos, NPCs, races, weapons, and more.
 
