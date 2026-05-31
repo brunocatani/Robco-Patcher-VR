@@ -20,3 +20,7 @@ The mod works with ESL and ESL-flagged ESPs, but some mods may not work correctl
 ## Credits
 
 Please send any and all credits, donations, and kudos to Zzyxzz.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
