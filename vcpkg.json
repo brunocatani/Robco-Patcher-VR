@@ -1,0 +1,22 @@
+{
+  "name": "robco-patcher-vr",
+  "version": "1.0.0",
+  "description": "RobCo-Patcher ported to Fallout 4 VR — runtime form patcher via INI configs",
+  "dependencies": [
+    "rapidcsv",
+    "rsm-mmio",
+    "spdlog",
+    "xbyak"
+  ],
+  "builtin-baseline": "efa4634bd526b87559684607d2cbbdeeec0f07d8",
+  "overrides": [
+    {
+      "name": "fmt",
+      "version": "10.2.1"
+    },
+    {
+      "name": "spdlog",
+      "version": "1.13.0"
+    }
+  ]
+}
