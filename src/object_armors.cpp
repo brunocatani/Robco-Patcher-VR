@@ -142,6 +142,30 @@ struct patch_instruction_armor create_patch_instruction_armor(const std::string&
 		l.damageResist = damageResistvalue;
 	}
 
+	// damageResistMult
+	std::regex damageResistMult_regex("damageResistMult\\s*=([^:]+)", regex::icase);
+	std::smatch damageResistMultmatch;
+	std::regex_search(line, damageResistMultmatch, damageResistMult_regex);
+	if (damageResistMultmatch.empty() || damageResistMultmatch[1].str().empty()) {
+		l.damageResistMult = "none";
+	} else {
+		std::string value = damageResistMultmatch[1].str();
+		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+		l.damageResistMult = value;
+	}
+
+	// damageResistToAdd
+	std::regex damageResistToAdd_regex("damageResistToAdd\\s*=([^:]+)", regex::icase);
+	std::smatch damageResistToAddmatch;
+	std::regex_search(line, damageResistToAddmatch, damageResistToAdd_regex);
+	if (damageResistToAddmatch.empty() || damageResistToAddmatch[1].str().empty()) {
+		l.damageResistToAdd = "none";
+	} else {
+		std::string value = damageResistToAddmatch[1].str();
+		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+		l.damageResistToAdd = value;
+	}
+
 	// health
 	std::regex health_regex("health\\s*=([^:]+)", regex::icase);
 	std::smatch healthmatch;
@@ -153,6 +177,18 @@ struct patch_instruction_armor create_patch_instruction_armor(const std::string&
 		std::string healthvalue = healthmatch[1].str();
 		healthvalue.erase(std::remove_if(healthvalue.begin(), healthvalue.end(), ::isspace), healthvalue.end());
 		l.health = healthvalue;
+	}
+
+	// healthMult
+	std::regex healthMult_regex("healthMult\\s*=([^:]+)", regex::icase);
+	std::smatch healthMultmatch;
+	std::regex_search(line, healthMultmatch, healthMult_regex);
+	if (healthMultmatch.empty() || healthMultmatch[1].str().empty()) {
+		l.healthMult = "none";
+	} else {
+		std::string value = healthMultmatch[1].str();
+		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+		l.healthMult = value;
 	}
 
 	// weight
@@ -421,6 +457,21 @@ struct patch_instruction_armor create_patch_instruction_armor(const std::string&
 		l.fullName = namevalue;
 	}
 
+	// extract instanceNamingRule
+	std::regex instanceNamingRule_regex("instanceNamingRule\\s*=([^:]+)", regex::icase);
+	std::smatch instanceNamingRuleMatch;
+	std::regex_search(line, instanceNamingRuleMatch, instanceNamingRule_regex);
+	if (instanceNamingRuleMatch.empty() || instanceNamingRuleMatch[1].str().empty()) {
+		// An omitted field means "leave unchanged". The explicit value "none"
+		// remains available to clear the current naming rule.
+		l.instanceNamingRule.clear();
+	} else {
+		std::string value = instanceNamingRuleMatch[1].str();
+		value.erase(value.begin(), std::find_if_not(value.begin(), value.end(), ::isspace));
+		value.erase(std::find_if_not(value.rbegin(), value.rend(), ::isspace).base(), value.end());
+		l.instanceNamingRule = value;
+	}
+
 	return l;
 }
 
@@ -629,6 +680,22 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 				}
 			}
 
+			if (found && !line.damageResistMult.empty() && line.damageResistMult != "none") {
+				try {
+					curobj->armorData.rating = curobj->armorData.rating * stof(line.damageResistMult);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage by mult to {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
+				} catch (const std::invalid_argument& e) {
+				}
+			}
+
+			if (found && !line.damageResistToAdd.empty() && line.damageResistToAdd != "none") {
+				try {
+					curobj->armorData.rating = curobj->armorData.rating + stof(line.damageResistToAdd);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage by add to {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
+				} catch (const std::invalid_argument& e) {
+				}
+			}
+
 			if (found && !line.objectEffect.empty() && line.objectEffect != "none") {
 
 
@@ -654,6 +721,14 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 				try {
 					curobj->armorData.health = stof(line.health);
 					logger::debug(FMT_STRING("armor formid: {:08X} {} changed health {}"), curobj->formID, curobj->fullName, curobj->armorData.health);
+				} catch (const std::invalid_argument& e) {
+				}
+			}
+
+			if (found && !line.healthMult.empty() && line.healthMult != "none") {
+				try {
+					curobj->armorData.health = curobj->armorData.health * stof(line.healthMult);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} multiplied health {}"), curobj->formID, curobj->fullName, curobj->armorData.health);
 				} catch (const std::invalid_argument& e) {
 				}
 			}
@@ -769,6 +844,19 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 					logger::debug(FMT_STRING("armor formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
 					curobj->fullName = line.fullName;
 				} catch (const std::invalid_argument& e) {
+				}
+			}
+
+			if (found && !line.instanceNamingRule.empty()) {
+				if (line.instanceNamingRule == "none") {
+					curobj->instanceNamingRules = nullptr;
+					logger::debug(FMT_STRING("armor formid: {:08X} changed InstanceNamingRules to null (none)"), curobj->formID);
+				} else {
+					RE::TESForm* currentform = GetFormFromIdentifier(line.instanceNamingRule);
+					if (currentform && currentform->formType == RE::ENUM_FORM_ID::kINNR) {
+						curobj->instanceNamingRules = (RE::BGSInstanceNamingRules*)currentform;
+						logger::debug(FMT_STRING("armor formid: {:08X} {} changed InstanceNamingRules to {:08X}"), curobj->formID, curobj->fullName, currentform->formID);
+					}
 				}
 			}
 

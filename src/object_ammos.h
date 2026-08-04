@@ -20,6 +20,8 @@ namespace AMMOS
 		std::vector<std::string> ammo;
 		std::string type;
 		std::string damage;
+		std::string value;
+		std::string valueMult;
 		std::string projectile;
 		std::vector<std::string> formList;
 		std::string fullName;

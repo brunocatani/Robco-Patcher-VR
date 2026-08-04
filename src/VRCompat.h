@@ -100,16 +100,6 @@ struct fmt::formatter<RE::BGSLocalizedString, CharT> : formatter<const char*, Ch
 	}
 };
 
-template <bool CS, typename CharT>
-struct fmt::formatter<RE::detail::BSFixedString<char, CS>, CharT> : formatter<const char*, CharT>
-{
-	template <class FormatContext>
-	auto format(const RE::detail::BSFixedString<char, CS>& a_str, FormatContext& a_ctx) const
-	{
-		return formatter<const char*, CharT>::format(a_str.c_str(), a_ctx);
-	}
-};
-
 // =========================================================================
 // Helper functions replacing missing member functions
 // =========================================================================

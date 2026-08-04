@@ -97,6 +97,30 @@ namespace AMMOS
 			l.damage = damagevalue;
 		}
 
+		// extract value
+		std::regex value_regex("value\\s*=([^:]+)", regex::icase);
+		std::smatch valuematch;
+		std::regex_search(line, valuematch, value_regex);
+		if (valuematch.empty() || valuematch[1].str().empty()) {
+			l.value = "none";
+		} else {
+			std::string valuevalue = valuematch[1].str();
+			valuevalue.erase(std::remove_if(valuevalue.begin(), valuevalue.end(), ::isspace), valuevalue.end());
+			l.value = valuevalue;
+		}
+
+		// extract valueMult
+		std::regex valueMult_regex("valueMult\\s*=([^:]+)", regex::icase);
+		std::smatch valueMultmatch;
+		std::regex_search(line, valueMultmatch, valueMult_regex);
+		if (valueMultmatch.empty() || valueMultmatch[1].str().empty()) {
+			l.valueMult = "none";
+		} else {
+			std::string value = valueMultmatch[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.valueMult = value;
+		}
+
 		// extract projectile
 		std::regex setNewProjectile_regex("setNewProjectile\\s*=([^:]+)", regex::icase);
 		std::smatch setNewProjectilematch;
@@ -359,6 +383,22 @@ namespace AMMOS
 		if (!line.damage.empty() && line.damage != "none") {
 				curobj->data.damage = stof(line.damage);
 				logger::debug(FMT_STRING("ammo formid: {:08X} {} changed damage {}"), curobj->formID, curobj->fullName, curobj->data.damage);
+		}
+
+		if (!line.value.empty() && line.value != "none") {
+			try {
+				curobj->value = static_cast<std::int32_t>(std::stof(line.value));
+				logger::debug(FMT_STRING("ammo formid: {:08X} {} changed value {}"), curobj->formID, curobj->fullName, curobj->value);
+			} catch (const std::invalid_argument&) {
+			}
+		}
+
+		if (!line.valueMult.empty() && line.valueMult != "none") {
+			try {
+				curobj->value = static_cast<std::int32_t>(curobj->value * std::stof(line.valueMult));
+				logger::debug(FMT_STRING("ammo formid: {:08X} {} changed(multiplied) value {}"), curobj->formID, curobj->fullName, curobj->value);
+			} catch (const std::invalid_argument&) {
+			}
 		}
 
 		if (!line.type.empty() && line.type != "none") {

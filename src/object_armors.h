@@ -25,8 +25,11 @@ struct patch_instruction_armor
 	std::vector<float> values1;
 	std::vector<float> values2;
 	std::string damageResist;
+	std::string damageResistMult;
+	std::string damageResistToAdd;
 	std::string weight;
 	std::string health;
+	std::string healthMult;
 	std::string objectEffect;
 	std::vector<std::string> setBipedSlot;
 	std::vector<std::string> removeBipedSlot;
@@ -38,6 +41,7 @@ struct patch_instruction_armor
 	std::vector<std::string> attachParentSlotKeywordsToAdd;
 	std::vector<std::string> attachParentSlotKeywordsToRemove;
 	std::string fullName;
+	std::string instanceNamingRule;
 };
 
 struct patch_instruction_armor create_patch_instruction_armor(const std::string& line);

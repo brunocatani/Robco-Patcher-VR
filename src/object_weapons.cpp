@@ -191,6 +191,54 @@ namespace WEAPONS
 			l.attackDamage = value;
 		}
 
+		// extract attackDamageMult
+		std::regex attackDamageMult_regex("attackDamageMult\\s*=([^:]+)", regex::icase);
+		std::smatch attackDamageMultMatch;
+		std::regex_search(line, attackDamageMultMatch, attackDamageMult_regex);
+		if (attackDamageMultMatch.empty() || attackDamageMultMatch[1].str().empty()) {
+			l.attackDamageMult = "none";
+		} else {
+			std::string value = attackDamageMultMatch[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.attackDamageMult = value;
+		}
+
+		// extract attackDamageToAdd
+		std::regex attackDamageToAdd_regex("attackDamageToAdd\\s*=([^:]+)", regex::icase);
+		std::smatch attackDamageToAddMatch;
+		std::regex_search(line, attackDamageToAddMatch, attackDamageToAdd_regex);
+		if (attackDamageToAddMatch.empty() || attackDamageToAddMatch[1].str().empty()) {
+			l.attackDamageToAdd = "none";
+		} else {
+			std::string value = attackDamageToAddMatch[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.attackDamageToAdd = value;
+		}
+
+		// extract maxRange
+		std::regex maxRange_regex("maxRange\\s*=([^:]+)", regex::icase);
+		std::smatch maxRangeMatch;
+		std::regex_search(line, maxRangeMatch, maxRange_regex);
+		if (maxRangeMatch.empty() || maxRangeMatch[1].str().empty()) {
+			l.maxRange = "none";
+		} else {
+			std::string value = maxRangeMatch[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.maxRange = value;
+		}
+
+		// extract minRange
+		std::regex minRange_regex("minRange\\s*=([^:]+)", regex::icase);
+		std::smatch minRangeMatch;
+		std::regex_search(line, minRangeMatch, minRange_regex);
+		if (minRangeMatch.empty() || minRangeMatch[1].str().empty()) {
+			l.minRange = "none";
+		} else {
+			std::string value = minRangeMatch[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.minRange = value;
+		}
+
 				// extract weight
 		std::regex weight_regex("weight\\s*=([^:]+)", regex::icase);
 		std::smatch weightmatch;
@@ -620,6 +668,36 @@ namespace WEAPONS
 			l.values2 = DamageTypesNew_max_values;
 		}
 
+		// extract changeDamageTypesByMult
+		std::regex DamageTypesByMult_regex("changeDamageTypesByMult\\s*=([^:]+)", regex::icase);
+		std::smatch DamageTypesByMult_match;
+		std::regex_search(line, DamageTypesByMult_match, DamageTypesByMult_regex);
+		std::vector<std::string> DamageTypesByMult_before_eq;
+		std::vector<float> DamageTypesByMult_values;
+		if (DamageTypesByMult_match.empty() || DamageTypesByMult_match[1].str().empty()) {
+			//empty
+		} else {
+			std::string DamageTypesByMult_str = DamageTypesByMult_match[1];
+			std::regex DamageTypesByMult_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([\\d.]+)", regex::icase);
+			std::sregex_iterator DamageTypesByMult_iterator(DamageTypesByMult_str.begin(), DamageTypesByMult_str.end(), DamageTypesByMult_list_regex);
+			std::sregex_iterator DamageTypesByMult_end;
+			while (DamageTypesByMult_iterator != DamageTypesByMult_end) {
+				std::string avif = (*DamageTypesByMult_iterator)[1].str();
+				avif.erase(avif.begin(), std::find_if_not(avif.begin(), avif.end(), ::isspace));
+				avif.erase(std::find_if_not(avif.rbegin(), avif.rend(), ::isspace).base(), avif.end());
+
+				if (avif == "none") {
+					break;
+				}
+
+				DamageTypesByMult_before_eq.push_back(avif);
+				DamageTypesByMult_values.push_back(std::stof((*DamageTypesByMult_iterator)[2]));
+				++DamageTypesByMult_iterator;
+			}
+			l.damageTypesToChangeByMult = DamageTypesByMult_before_eq;
+			l.damageTypesByMultValues = DamageTypesByMult_values;
+		}
+
 		// extract damageTypesToRemove
 		std::regex damageTypesToRemove_regex("damageTypesToRemove\\s*=([^:]+)", regex::icase);
 		std::smatch damageTypesToRemove_match;
@@ -657,6 +735,21 @@ namespace WEAPONS
 			namevalue.erase(namevalue.begin(), std::find_if_not(namevalue.begin(), namevalue.end(), ::isspace));
 			namevalue.erase(std::find_if_not(namevalue.rbegin(), namevalue.rend(), ::isspace).base(), namevalue.end());
 			l.fullName = namevalue;
+		}
+
+		// extract instanceNamingRule
+		std::regex instanceNamingRule_regex("instanceNamingRule\\s*=([^:]+)", regex::icase);
+		std::smatch instanceNamingRuleMatch;
+		std::regex_search(line, instanceNamingRuleMatch, instanceNamingRule_regex);
+		if (instanceNamingRuleMatch.empty() || instanceNamingRuleMatch[1].str().empty()) {
+			// An omitted field means "leave unchanged". The explicit value "none"
+			// remains available to clear the current naming rule.
+			l.instanceNamingRule.clear();
+		} else {
+			std::string value = instanceNamingRuleMatch[1].str();
+			value.erase(value.begin(), std::find_if_not(value.begin(), value.end(), ::isspace));
+			value.erase(std::find_if_not(value.rbegin(), value.rend(), ::isspace).base(), value.end());
+			l.instanceNamingRule = value;
 		}
 
 		logger::debug(FMT_STRING("weapon: {}  keywords: {}  ammo: {} keywordsToAdd: {} aimModel {}"), l.object.size(), l.keywords.size(), l.ammo.size(), l.keywordsToAdd.size(), l.aimModel.size());
@@ -1309,6 +1402,34 @@ namespace WEAPONS
 			} catch (const std::invalid_argument& e) {
 			}
 		}
+		if (!line.attackDamageMult.empty() && line.attackDamageMult != "none") {
+			try {
+				curobj->weaponData.attackDamage = static_cast<std::uint16_t>(curobj->weaponData.attackDamage * std::stof(line.attackDamageMult));
+				logger::debug(FMT_STRING("weapon formid: {:08X} {} changed damage by mult to {}"), curobj->formID, curobj->fullName, curobj->weaponData.attackDamage);
+			} catch (const std::invalid_argument& e) {
+			}
+		}
+		if (!line.attackDamageToAdd.empty() && line.attackDamageToAdd != "none") {
+			try {
+				curobj->weaponData.attackDamage = static_cast<std::uint16_t>(curobj->weaponData.attackDamage + std::stof(line.attackDamageToAdd));
+				logger::debug(FMT_STRING("weapon formid: {:08X} {} changed damage by add to {}"), curobj->formID, curobj->fullName, curobj->weaponData.attackDamage);
+			} catch (const std::invalid_argument& e) {
+			}
+		}
+		if (!line.maxRange.empty() && line.maxRange != "none") {
+			try {
+				curobj->weaponData.maxRange = std::stof(line.maxRange);
+				logger::debug(FMT_STRING("weapon formid: {:08X} {} changed maxRange {}"), curobj->formID, curobj->fullName, curobj->weaponData.maxRange);
+			} catch (const std::invalid_argument& e) {
+			}
+		}
+		if (!line.minRange.empty() && line.minRange != "none") {
+			try {
+				curobj->weaponData.minRange = std::stof(line.minRange);
+				logger::debug(FMT_STRING("weapon formid: {:08X} {} changed minRange {}"), curobj->formID, curobj->fullName, curobj->weaponData.minRange);
+			} catch (const std::invalid_argument& e) {
+			}
+		}
 		if (!line.weight.empty() && line.weight != "none") {
 			try {
 				curobj->weaponData.weight = std::stof(line.weight);
@@ -1548,6 +1669,25 @@ namespace WEAPONS
 			}
 		}
 
+		if (!line.damageTypesToChangeByMult.empty()) {
+			for (size_t i = 0; i < line.damageTypesToChangeByMult.size(); i++) {
+				RE::TESForm* currentform = nullptr;
+				std::string string_form = line.damageTypesToChangeByMult[i];
+				currentform = GetFormFromIdentifier(string_form);
+				if (currentform && currentform->formType == RE::ENUM_FORM_ID::kDMGT && curobj->weaponData.damageTypes) {
+					auto& damageTypes = curobj->weaponData.damageTypes[0];
+					for (size_t j = 0; j < damageTypes.size(); j++) {
+						if (damageTypes[j].first->formID == currentform->formID) {
+							float finalValue = static_cast<float>(damageTypes[j].second.i) * line.damageTypesByMultValues[i];
+							changeDamageType_Weapon(curobj, (RE::BGSDamageType*)currentform, finalValue);
+							logger::debug(FMT_STRING("weapon formid: {:08X} {} changed damage type {:08X} by mult to {}"), curobj->formID, curobj->fullName, currentform->formID, finalValue);
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		if (!line.damageTypesToRemove.empty()) {
 			//logger::info("found! patching values");
 			//for (const auto& avifstring : line.avifs)
@@ -1568,6 +1708,19 @@ namespace WEAPONS
 				logger::debug(FMT_STRING("weapon formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
 				curobj->fullName = line.fullName;
 			} catch (const std::invalid_argument& e) {
+			}
+		}
+
+		if (!line.instanceNamingRule.empty()) {
+			if (line.instanceNamingRule == "none") {
+				curobj->instanceNamingRules = nullptr;
+				logger::debug(FMT_STRING("weapon formid: {:08X} changed InstanceNamingRules to null (none)"), curobj->formID);
+			} else {
+				RE::TESForm* currentform = GetFormFromIdentifier(line.instanceNamingRule);
+				if (currentform && currentform->formType == RE::ENUM_FORM_ID::kINNR) {
+					curobj->instanceNamingRules = (RE::BGSInstanceNamingRules*)currentform;
+					logger::debug(FMT_STRING("weapon formid: {:08X} {} changed InstanceNamingRules to {:08X}"), curobj->formID, curobj->fullName, currentform->formID);
+				}
 			}
 		}
 

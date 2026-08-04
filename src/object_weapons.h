@@ -29,6 +29,10 @@ struct patch_instruction
 	std::vector<float> values1;
 	std::vector<float> values2;
 	std::string attackDamage;
+	std::string attackDamageMult;
+	std::string attackDamageToAdd;
+	std::string maxRange;
+	std::string minRange;
 	std::string weight;
 	std::string capsvalue;
 	std::string actionpointcost;
@@ -49,9 +53,12 @@ struct patch_instruction
 	std::string springBackMult;
 	std::string accuracyMult;
 	std::vector<std::string> damageTypesToRemove;
+	std::vector<std::string> damageTypesToChangeByMult;
+	std::vector<float> damageTypesByMultValues;
 	std::string recoilPerShotMin;
 	std::string recoilPerShotMax;
 	std::vector<std::string> filterByFlagsExclude;
+	std::string instanceNamingRule;
 	
 	
 	

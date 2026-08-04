@@ -5,6 +5,7 @@
 #include <gameforms.h>
 #include <iostream>
 #include <list>
+#include <object_aimModel.h>
 #include <object_alch.h>
 #include <object_ammos.h>
 #include <object_armors.h>
@@ -276,6 +277,10 @@ namespace
 
 					if (GetPrivateProfileIntA(settingsSection, "iEnableWeaponPatching", 0, configFile)) {
 						RunPatcherCategory("weapon", [] { WEAPONS::readConfig(".\\Data\\F4se\\Plugins\\RobCo_Patcher\\weapon\\"); });
+					}
+
+					if (GetPrivateProfileIntA(settingsSection, "iEnableAimModelPatching", 0, configFile)) {
+						RunPatcherCategory("aimmodel", [] { AIMMODEL::readConfig(".\\Data\\F4se\\Plugins\\RobCo_Patcher\\aimModel\\"); });
 					}
 
 					if (GetPrivateProfileIntA(settingsSection, "iEnableRacePatching", 0, configFile)) {
