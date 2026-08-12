@@ -1,6 +1,7 @@
 #include "utility.h"
 #include "EngineAdapters.h"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -142,6 +143,15 @@ namespace
 	constexpr std::size_t kMaximumPluginNameLength = kPluginFilenameCapacity - 1;
 
 	using GetCompiledFileCollection = const RE::TESFileCollection* (*)();
+	struct DaytripperModuleCandidate
+	{
+		const wchar_t* moduleName;
+		std::string_view displayName;
+	};
+	constexpr std::array kDaytripperModuleCandidates{
+		DaytripperModuleCandidate{ L"Daytripper4.dll", "Daytripper4.dll" },
+		DaytripperModuleCandidate{ L"falloutvresl.dll", "falloutvresl.dll" }
+	};
 
 	bool g_formResolverInitialized = false;
 	std::unordered_map<std::string, RE::TESForm*> g_formCache;
@@ -254,15 +264,33 @@ namespace
 
 	const RE::TESFileCollection* ResolveDaytripperCollection()
 	{
-		const auto module = GetModuleHandleW(L"falloutvresl.dll");
-		if (!module) {
-			logger::warn("Daytripper is not loaded; ESL form resolution is unavailable");
+		const DaytripperModuleCandidate* selectedCandidate = nullptr;
+		HMODULE selectedModule = nullptr;
+		for (const auto& candidate : kDaytripperModuleCandidates) {
+			if (const auto module = GetModuleHandleW(candidate.moduleName)) {
+				if (selectedModule && module != selectedModule) {
+					logger::critical(
+						FMT_STRING("Both {} and {} are loaded; refusing an ambiguous Daytripper provider"),
+						selectedCandidate->displayName,
+						candidate.displayName);
+					return nullptr;
+				}
+				selectedCandidate = &candidate;
+				selectedModule = module;
+			}
+		}
+
+		if (!selectedModule || !selectedCandidate) {
+			logger::warn(
+				"Daytripper is not loaded under Daytripper4.dll or falloutvresl.dll; ESL form resolution is unavailable");
 			return nullptr;
 		}
 
-		const auto address = GetProcAddress(module, "GetCompiledFileCollectionExtern");
+		const auto address = GetProcAddress(selectedModule, "GetCompiledFileCollectionExtern");
 		if (!address) {
-			logger::error("Daytripper does not export GetCompiledFileCollectionExtern; ESL form resolution is unavailable");
+			logger::error(
+				FMT_STRING("Daytripper module {} does not export GetCompiledFileCollectionExtern; ESL form resolution is unavailable"),
+				selectedCandidate->displayName);
 			return nullptr;
 		}
 
@@ -271,6 +299,7 @@ namespace
 		if (!ValidateDaytripperCollection(collection)) {
 			return nullptr;
 		}
+		logger::info(FMT_STRING("Using Daytripper ESL provider {}"), selectedCandidate->displayName);
 		return collection;
 	}
 
