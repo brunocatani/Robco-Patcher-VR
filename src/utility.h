@@ -1,40 +1,70 @@
-#ifndef UTILITY
-#define UTILITY
+#pragma once
 
-using namespace std;
-
-
-#include <string>
 #include "PCH.h"
-#include "RE/Bethesda/TESForms.h"
 
+#include <regex>
+#include <string>
+#include <vector>
 
-
+bool InitializeFormResolver();
 bool IsPluginInstalled(const char* name);
+RE::TESForm* GetFormFromIdentifier(const std::string& identifier);
+bool FormMatchesModNames(const RE::TESForm* form, const std::vector<std::string>& modNames);
 
-std::string to_string(RE::BipedObjectSlot slot);
+std::int32_t getPropertyFromString(
+	std::string text,
+	RE::ENUM_FORM_ID targetFormType = RE::ENUM_FORM_ID::kWEAP);
+int findPositionInArray(const RE::BSTArray<RE::TESForm*>& array, RE::TESForm* form);
 
-//template <typename T>
-//T* getForm(std::string form);
-void RemoveOModEntry(RE::BGSMod::Attachment::Mod::Data* a_modData, uint32_t property);
-uint32_t getPropertyFromString(std::string text);
-int findPositionInArray(RE::BSTArray<RE::TESForm*> pArray, RE::TESForm* form);
-bool changeAVIF_NPC(RE::TESNPC* pNPC, RE::ActorValueInfo* pActorValueInfo, float pfValue);
-bool changeAVIF_Race(RE::TESRace* pNPC, RE::ActorValueInfo* pActorValueInfo, float pfValue);
-bool changeDamageType_Weapon(RE::TESObjectWEAP* object, RE::BGSDamageType* type, float pfValue);
-bool changeDamageType_Armor(RE::TESObjectARMO* object, RE::BGSDamageType* type, float pfValue);
-bool changeKeyword_TESLevItem(RE::TESLevItem* pNPC, RE::BGSKeyword* pActorValueInfo, float pfValue);
+bool changeAVIF_NPC(RE::TESNPC* npc, RE::ActorValueInfo* actorValue, float value);
+bool changeAVIF_Race(RE::TESRace* race, RE::ActorValueInfo* actorValue, float value);
+bool changeDamageType_Weapon(RE::TESObjectWEAP* object, RE::BGSDamageType* type, float value);
+bool changeDamageType_Armor(RE::TESObjectARMO* object, RE::BGSDamageType* type, float value);
+bool changeDamageTypeMult_Armor(RE::TESObjectARMO* object, RE::BGSDamageType* type, float value);
+bool changeKeyword_TESLevItem(RE::TESLevItem* list, RE::BGSKeyword* keyword, float value);
 bool eraseDamageType_Weapon(RE::TESObjectWEAP* object, RE::BGSDamageType* type);
-	RE::EffectItem* createNewEffectItem(RE::EffectItem* item, RE::EffectSetting* setting, float magni, int dur, int area);
+
 std::vector<std::string> splitRelationNumber(const std::string& input);
-std::string trim(const std::string& str);
+std::string trim(const std::string& value);
+std::string toLowerCase(std::string value);
+std::string to_string(RE::BipedObjectSlot slot);
 RE::BipedObjectSlot getBipedObjectSlot(int slot);
 
-template <typename T>
-T GetOffset(const void* baseObject, int offset);
+int getRandomNumberCustom(int min, int max);
+int getRandomNumber();
+float getRandomFloat(float min, float max);
 
-RE::TESForm* GetFormFromIdentifier(const std::string& identifier);
-std::string toLowerCase(std::string pString);
+bool HasIniExtension(const std::string& fileName);
+bool regexSearchParameter(const std::string& line, std::smatch& match, const std::regex& pattern);
+void extractForms(const std::string& line, const std::string& pattern, std::vector<std::string>& destination);
+void extractStrings(const std::string& line, const std::string& pattern, std::vector<std::string>& destination);
+void extractMultiFormsInt(
+	const std::string& line,
+	const std::string& pattern,
+	std::vector<std::string>& flags,
+	std::vector<int>& minValues,
+	std::vector<int>& maxValues);
+void extractMultiFormsFloat(
+	const std::string& line,
+	const std::string& pattern,
+	std::vector<std::string>& flags,
+	std::vector<float>& minValues,
+	std::vector<float>& maxValues);
+void extractMultiFormsString(
+	const std::string& line,
+	const std::string& pattern,
+	std::vector<std::string>& flags,
+	std::vector<std::string>& minValues,
+	std::vector<std::string>& maxValues);
+void extractValueString(const std::string& line, const std::string& pattern, std::string& value);
+void extractDataStrings(const std::string& line, const std::string& pattern, std::vector<std::string>& destination);
+void extractToArr2D(const std::string& line, const std::string& pattern, std::vector<std::vector<std::string>>& destination);
+void extractMultiDataFormsFloat(
+	const std::string& line,
+	const std::string& pattern,
+	std::vector<std::string>& flags,
+	std::vector<float>& minValues,
+	std::vector<float>& maxValues);
+
 std::string FormatFormID(RE::TESForm* form);
 bool ShouldSkipPatch(const std::string& category, RE::TESForm* form);
-#endif

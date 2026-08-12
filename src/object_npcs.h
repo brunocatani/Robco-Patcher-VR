@@ -31,13 +31,15 @@ namespace NPCS
 		std::vector<std::string> factionsToAdd;
 		std::vector<float> factionsToAddRank1;
 		std::vector<float> factionsToAddRank2;
-		
+		std::string chanceRobCo;
 		std::string calcStats;
-		std::string kPCLevelMult;
+		std::vector<std::string> pcMultFlag;
+		std::vector<int> PCvalues1;
+		std::vector<int> PCvalues2;
 		std::string kEssential;
 		std::string kProtected;
 		std::string isFemale;
-		
+		std::vector<std::string> modNames;
 
 		std::string level_min;
 		std::string level_max;
@@ -73,7 +75,7 @@ namespace NPCS
 
 	struct patch_instruction create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<patch_instruction>& tokens);
-	void* readConfig(const std::string& folder);
+	void readConfig(const std::string& folder);
 
 }
 

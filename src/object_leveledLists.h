@@ -19,19 +19,16 @@ namespace LEVELEDLISTS
 
 	struct struct_ll
 	{
-		uint32_t size;
-		RE::LEVELED_OBJECT ll[];
+		std::uint32_t size;  // engine: count als u32 am blockanfang
+		std::uint32_t pad;   // damit ll bei +8 startet
+		RE::LEVELED_OBJECT ll[1];
 	};
 
 	struct line_content
 	{
 
 
-		std::string object;
-		std::string level;
-		std::string reference;
-		std::string count;
-		std::string chance;
+		std::string chanceRobCo;
 		std::string clear;
 		std::string calcForLevel;
 		std::string calcEachItem;
@@ -47,14 +44,15 @@ namespace LEVELEDLISTS
 		std::vector<std::vector<std::string>> templateKeyword;
 		std::vector<std::string> removeItemsByKeyword;
 		std::string noFilterLL;
+		std::vector<std::string> modNames;
 	};
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
+	void readConfig(const std::string& folder);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void patch(LEVELEDLISTS::line_content line, RE::TESLevItem* curobj);
-	void patchContainer(LEVELEDLISTS::line_content line, RE::TESObjectCONT* curobj);
+	void patch(const LEVELEDLISTS::line_content& line, RE::TESLevItem* curobj);
+	void patchContainer(const LEVELEDLISTS::line_content& line, RE::TESObjectCONT* curobj);
 }
 
 #endif

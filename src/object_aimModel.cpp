@@ -67,10 +67,10 @@ namespace AIMMODEL
 		return l;
 	}
 
-	void* patch(AIMMODEL::patch_instruction line, RE::BGSAimModel* curobj)
+	void patch(AIMMODEL::patch_instruction line, RE::BGSAimModel* curobj)
 	{
 		if (!curobj || ShouldSkipPatch("aimmodel", curobj)) {
-			return nullptr;
+			return;
 		}
 
 		auto& data = curobj->aimModelData;
@@ -172,7 +172,7 @@ namespace AIMMODEL
 			} catch (const std::invalid_argument&) {}
 		}
 
-		return nullptr;
+		return;
 	}
 
 	void process_patch_instructions(const std::list<patch_instruction>& tokens)
@@ -200,10 +200,9 @@ namespace AIMMODEL
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
-		std::string extension = ".ini";
 
 		DIR* dir;
 		struct dirent* ent;
@@ -222,9 +221,8 @@ namespace AIMMODEL
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -262,6 +260,6 @@ namespace AIMMODEL
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 }

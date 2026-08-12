@@ -24,10 +24,14 @@ struct patch_instruction_armor
 	std::vector<std::string> damageTypes;
 	std::vector<float> values1;
 	std::vector<float> values2;
+	std::vector<std::string> damageTypesMult;
+	std::vector<float> valuesMult1;
+	std::vector<float> valuesMult2;
 	std::string damageResist;
 	std::string damageResistMult;
 	std::string damageResistToAdd;
 	std::string weight;
+	std::string weightMult;
 	std::string health;
 	std::string healthMult;
 	std::string objectEffect;
@@ -41,12 +45,13 @@ struct patch_instruction_armor
 	std::vector<std::string> attachParentSlotKeywordsToAdd;
 	std::vector<std::string> attachParentSlotKeywordsToRemove;
 	std::string fullName;
-	std::string instanceNamingRule;
+	std::vector<std::string> modNames;
+	std::string INRD;
 };
 
 struct patch_instruction_armor create_patch_instruction_armor(const std::string& line);
 void process_patch_instructions_armor(const std::list<patch_instruction_armor>& tokens);
-void* readConfig(const std::string& folder);
+void readConfig(const std::string& folder);
 
 }
 

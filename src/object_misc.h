@@ -25,16 +25,20 @@ namespace MISC
 		std::string weight;
 		std::string weightMultiply;
 		std::string capsvalue;
+		std::string valueMult;
+		std::string fullName;
+		std::vector<std::string> keywordsToAdd;
+		std::vector<std::string> keywordsToRemove;
 		std::string filterByHasComponent;
 		std::string filterByHasNoComponent;
-		
+		std::vector<std::string> modNames;
 
 	};
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(MISC::line_content line, RE::TESObjectMISC* curobj);
+	void readConfig(const std::string& folder);
+	void patch(const MISC::line_content& line, RE::TESObjectMISC* curobj);
 }
 
 #endif

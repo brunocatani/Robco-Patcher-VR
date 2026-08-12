@@ -1,174 +1,46 @@
 #include "object_misc.h"
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+#include <unordered_set>
 namespace MISC
 {
+	std::int32_t checkedInt32(double value)
+	{
+		if (!std::isfinite(value) || value < static_cast<double>((std::numeric_limits<std::int32_t>::min)()) || value > static_cast<double>((std::numeric_limits<std::int32_t>::max)())) {
+			throw std::out_of_range("value is outside the int32 range");
+		}
+		return static_cast<std::int32_t>(value);
+	}
 
 struct line_content create_patch_instruction(const std::string& line)
 {
 	line_content l;
 
-	// extract objects
-	std::regex objects_regex("filterByMiscs\\s*=([^:]+)", regex::icase);
-	std::smatch objects_match;
-	std::regex_search(line, objects_match, objects_regex);
-	std::vector<std::string> objects;
-	if (objects_match.empty() || objects_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string objects_str = objects_match[1];
-		std::regex objects_list_regex("[a-zA-Z0-9_\\-. ]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
-		std::sregex_iterator objects_end;
-		while (objects_iterator != objects_end) {
-			std::string tempVar = (*objects_iterator)[0].str();
-			tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-			tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-			//logger::info(FMT_STRING("Race: {}"), race);
-			if (tempVar != "none") {
-				objects.push_back(tempVar);
-			}
-			++objects_iterator;
-		}
-		l.objects = objects;
-	}
 
-	// extract filterByHasComponent
-	std::regex filterByHasComponent_regex("filterByHasComponent\\s*=([^:]+)", regex::icase);
-	std::smatch filterByHasComponentmatch;
-	std::regex_search(line, filterByHasComponentmatch, filterByHasComponent_regex);
-	// extract the value after the equals sign
-	if (filterByHasComponentmatch.empty() || filterByHasComponentmatch[1].str().empty()) {
-		l.filterByHasComponent = "none";
-	} else {
-		std::string value = filterByHasComponentmatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.filterByHasComponent = value;
-	}
+	extractForms(line, "filterByMiscs\\s*=([^:]+)", l.objects);
 
-		// extract filterByHasComponentExclude
-	std::regex filterByHasComponentExclude_regex("filterByHasNoComponent\\s*=([^:]+)", regex::icase);
-	std::smatch filterByHasComponentExcludematch;
-	std::regex_search(line, filterByHasComponentExcludematch, filterByHasComponentExclude_regex);
-	// extract the value after the equals sign
-	if (filterByHasComponentExcludematch.empty() || filterByHasComponentExcludematch[1].str().empty()) {
-		l.filterByHasNoComponent = "none";
-	} else {
-		std::string value = filterByHasComponentExcludematch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.filterByHasNoComponent = value;
-	}
+	extractValueString(line, "filterByHasComponent\\s*=([^:]+)", l.filterByHasComponent);
 
-	// extract keywords
-	std::regex keywords_regex("filterByKeywords\\s*=([^:]+)", regex::icase);
-	std::smatch keywords_match;
-	std::regex_search(line, keywords_match, keywords_regex);
-	std::vector<std::string> keywords;
-	if (keywords_match.empty() || keywords_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywords_str = keywords_match[1];
-		std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
-		std::sregex_iterator keywords_end;
-		while (keywords_iterator != keywords_end) {
-			std::string keyword = (*keywords_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywords.push_back(keyword);
-			}
-			++keywords_iterator;
-		}
-		l.keywords = keywords;
-	}
+	extractValueString(line, "filterByHasNoComponent\\s*=([^:]+)", l.filterByHasNoComponent);
 
-	// extract keywords
-	std::regex keywordsOr_regex("filterByKeywordsOr\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsOr_match;
-	std::regex_search(line, keywordsOr_match, keywordsOr_regex);
-	std::vector<std::string> keywordsOr;
-	if (keywordsOr_match.empty() || keywordsOr_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsOr_str = keywordsOr_match[1];
-		std::regex keywordsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsOr_iterator(keywordsOr_str.begin(), keywordsOr_str.end(), keywordsOr_list_regex);
-		std::sregex_iterator keywordsOr_end;
-		while (keywordsOr_iterator != keywordsOr_end) {
-			std::string keyword = (*keywordsOr_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywordsOr.push_back(keyword);
-			}
-			++keywordsOr_iterator;
-		}
-		l.keywordsOr = keywordsOr;
-	}
+	extractForms(line, "filterByKeywords\\s*=([^:]+)", l.keywords);
 
-	// extract keywords
-	std::regex keywordsExcluded_regex("filterByKeywordsExcluded\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsExcluded_match;
-	std::regex_search(line, keywordsExcluded_match, keywordsExcluded_regex);
-	std::vector<std::string> keywordsExcluded;
-	if (keywordsExcluded_match.empty() || keywordsExcluded_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsExcluded_str = keywordsExcluded_match[1];
-		std::regex keywordsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsExcluded_iterator(keywordsExcluded_str.begin(), keywordsExcluded_str.end(), keywordsExcluded_list_regex);
-		std::sregex_iterator keywordsExcluded_end;
-		while (keywordsExcluded_iterator != keywordsExcluded_end) {
-			std::string keyword = (*keywordsExcluded_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywordsExcluded.push_back(keyword);
-			}
-			++keywordsExcluded_iterator;
-		}
-		l.keywordsExcluded = keywordsExcluded;
-	}
+	extractForms(line, "filterByKeywordsOr\\s*=([^:]+)", l.keywordsOr);
 
-					// extract weight
-	std::regex weight_regex("weight\\s*=([^:]+)", regex::icase);
-	std::smatch weightmatch;
-	std::regex_search(line, weightmatch, weight_regex);
-	// extract the value after the equals sign
-	if (weightmatch.empty() || weightmatch[1].str().empty()) {
-		l.weight = "none";
-	} else {
-		std::string value = weightmatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.weight = value;
-	}
+	extractForms(line, "filterByKeywordsExcluded\\s*=([^:]+)", l.keywordsExcluded);
 
-		// extract weightMultiply
-	std::regex weightMultiply_regex("weightMultiply\\s*=([^:]+)", regex::icase);
-	std::smatch weightMultiplymatch;
-	std::regex_search(line, weightMultiplymatch, weightMultiply_regex);
-	// extract the value after the equals sign
-	if (weightMultiplymatch.empty() || weightMultiplymatch[1].str().empty()) {
-		l.weightMultiply = "none";
-	} else {
-		std::string value = weightMultiplymatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.weightMultiply = value;
-	}
+	extractValueString(line, "weight\\s*=([^:]+)", l.weight);
 
-	// extract capsvalue
-	std::regex capsvalue_regex("value\\s*=([^:]+)", regex::icase);
-	std::smatch capsvaluematch;
-	std::regex_search(line, capsvaluematch, capsvalue_regex);
-	// extract the value after the equals sign
-	if (capsvaluematch.empty() || capsvaluematch[1].str().empty()) {
-		l.capsvalue = "none";
-	} else {
-		std::string value = capsvaluematch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.capsvalue = value;
-	}
+	extractValueString(line, "weightMultiply\\s*=([^:]+)", l.weightMultiply);
 
+	extractValueString(line, "value\\s*=([^:]+)", l.capsvalue);
+	extractValueString(line, "valueMult\\s*=([^:]+)", l.valueMult);
+	extractValueString(line, "fullName\\s*=\\s*~([^~]+?)\\s*~", l.fullName);
+	extractForms(line, "keywordsToAdd\\s*=([^:]+)", l.keywordsToAdd);
+	extractForms(line, "keywordsToRemove\\s*=([^:]+)", l.keywordsToRemove);
 
+	extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
 	return l;
 }
@@ -177,8 +49,9 @@ void process_patch_instructions(const std::list<line_content>& tokens)
 {
 	logger::debug("processing patch instructions");
 	const auto dataHandler = RE::TESDataHandler::GetSingleton();
-	RE::BSTArray<RE::TESObjectMISC*> objectArray = dataHandler->GetFormArray<RE::TESObjectMISC>();
+	const auto& objectArray = dataHandler->GetFormArray<RE::TESObjectMISC>();
 	for (const auto& line : tokens) {
+		std::unordered_set<std::uint32_t> directlyPatched;
 
 		if (!line.objects.empty()) {
 			//logger::info("npc not empty");
@@ -188,9 +61,10 @@ void process_patch_instructions(const std::list<line_content>& tokens)
 
 				std::string string_form = objectstring;
 				currentform = GetFormFromIdentifier(string_form);
-				if (currentform && currentform->formType == RE::ENUM_FORM_ID::kAMMO) {
-					object = (RE::TESObjectMISC*)currentform;
-					patch(line, object);
+			if (currentform && currentform->formType == RE::ENUM_FORM_ID::kMISC && FormMatchesModNames(currentform, line.modNames)) {
+				object = (RE::TESObjectMISC*)currentform;
+				patch(line, object);
+				directlyPatched.insert(object->formID);
 
 				}
 			}
@@ -201,10 +75,24 @@ void process_patch_instructions(const std::list<line_content>& tokens)
 		}
 
 		for (const auto& curobj : objectArray) {
+			if (!curobj) {
+				continue;
+			}
+			if (directlyPatched.contains(curobj->formID)) {
+				continue;
+			}
 
 			bool found = false;
 			bool keywordAnd = false;
 			bool keywordOr = false;
+
+			if (curobj->IsDeleted()) {
+				continue;
+			}
+
+			if (!FormMatchesModNames(curobj, line.modNames)) {
+				continue;
+			}
 
 			if (!line.filterByHasComponent.empty() && line.filterByHasComponent != "none") {
 				if (curobj->componentData && curobj->componentData[0].size() > 0) {
@@ -312,7 +200,7 @@ void process_patch_instructions(const std::list<line_content>& tokens)
 	}
 }
 
-void* readConfig(const std::string& folder)
+void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
 		std::string extension = ".ini";
@@ -334,9 +222,8 @@ void* readConfig(const std::string& folder)
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -356,9 +243,12 @@ void* readConfig(const std::string& folder)
 								std::list<line_content> tokens;
 								infile.open(fullPath);
 								while (std::getline(infile, line)) {
-									if (line.empty() || line[0] == skipChar) {
-										continue;
-									}
+								if (line.empty()) {
+									continue;
+								}
+								if (line[0] == skipChar) {
+									continue;
+								}
 
 									PATCH::RecordRule("misc");
 									tokens.push_back(create_patch_instruction(line));
@@ -374,20 +264,21 @@ void* readConfig(const std::string& folder)
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
-	void* patch(MISC::line_content line, RE::TESObjectMISC* curobj)
+	void patch(const MISC::line_content& line, RE::TESObjectMISC* curobj)
 	{
 		if (!curobj || ShouldSkipPatch("misc", curobj)) {
-			return nullptr;
+			return;
 		}
 
 		if (!line.weight.empty() && line.weight != "none") {
 			try {
 				curobj->weight = std::stof(line.weight);
 				logger::debug(FMT_STRING("misc formid: {:08X} {} changed weight {}"), curobj->formID, curobj->fullName, curobj->weight);
-			} catch (const std::invalid_argument& e) {
+			} catch (const std::exception& e) {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid weight value '{}': {}"), curobj->formID, line.weight, e.what());
 			}
 		}
 
@@ -395,21 +286,55 @@ void* readConfig(const std::string& folder)
 			try {
 				curobj->weight = curobj->weight * std::stof(line.weightMultiply);
 				logger::debug(FMT_STRING("misc formid: {:08X} {} changed weight by multiplier {}"), curobj->formID, curobj->fullName, curobj->weight);
-			} catch (const std::invalid_argument& e) {
+			} catch (const std::exception& e) {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid weightMultiply value '{}': {}"), curobj->formID, line.weightMultiply, e.what());
 			}
 		}
 
 		if (!line.capsvalue.empty() && line.capsvalue != "none") {
 			try {
-				curobj->value = std::stof(line.capsvalue);
+				curobj->value = checkedInt32(std::stod(line.capsvalue));
 				logger::debug(FMT_STRING("misc formid: {:08X} {} changed value {}"), curobj->formID, curobj->fullName, curobj->value);
-			} catch (const std::invalid_argument& e) {
+			} catch (const std::exception& e) {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid value '{}': {}"), curobj->formID, line.capsvalue, e.what());
 			}
 		}
 
-		
+		if (!line.valueMult.empty() && line.valueMult != "none") {
+			try {
+				curobj->value = checkedInt32(static_cast<double>(curobj->value) * std::stod(line.valueMult));
+				logger::debug(FMT_STRING("misc formid: {:08X} {} multiplied value to {}"), curobj->formID, curobj->fullName, curobj->value);
+			} catch (const std::exception& e) {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid valueMult value '{}': {}"), curobj->formID, line.valueMult, e.what());
+			}
+		}
 
-		return nullptr;
+		if (!line.fullName.empty() && line.fullName != "none") {
+			curobj->fullName = line.fullName;
+		}
+
+		for (const auto& identifier : line.keywordsToAdd) {
+			auto* form = GetFormFromIdentifier(identifier);
+			if (form && form->formType == RE::ENUM_FORM_ID::kKYWD) {
+				auto* keyword = static_cast<RE::BGSKeyword*>(form);
+				if (!curobj->HasKeyword(keyword)) {
+					curobj->AddKeyword(keyword);
+				}
+			} else {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid keywordToAdd '{}'"), curobj->formID, identifier);
+			}
+		}
+
+		for (const auto& identifier : line.keywordsToRemove) {
+			auto* form = GetFormFromIdentifier(identifier);
+			if (form && form->formType == RE::ENUM_FORM_ID::kKYWD) {
+				curobj->RemoveKeyword(static_cast<RE::BGSKeyword*>(form));
+			} else {
+				logger::warn(FMT_STRING("Misc {:08X}: invalid keywordToRemove '{}'"), curobj->formID, identifier);
+			}
+		}
+
+		return;
 	}
 
 }

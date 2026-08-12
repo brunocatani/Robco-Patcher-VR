@@ -22,18 +22,19 @@ namespace RACES
 		std::vector<std::string> keywords;
 		std::vector<std::string> keywordsOr;
 		std::vector<std::string> keywordsExcluded;
-
+		std::string chanceRobCo;
 		std::vector<std::string> avifs;
 		std::vector<float> values1;
 		std::vector<float> values2;
 		std::vector<std::string> keywordsToAdd;
 		std::vector<std::string> keywordsToRemove;
 		std::vector<std::string> spellsToAdd;
+		std::vector<std::string> modNames;
 	};
 
 	struct patch_instruction create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<patch_instruction>& tokens);
-	void* readConfig(const std::string& folder);
+	void readConfig(const std::string& folder);
 }
 
 #endif

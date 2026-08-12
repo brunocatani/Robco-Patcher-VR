@@ -29,8 +29,10 @@ namespace ALCH
 		std::vector<std::string> keywordsToRemove;
 		std::string filterType;
 		std::string capsvalue;
+		std::string clear;
 		std::string weight;
 		std::string fullName;
+		std::vector<std::string> modNames;
 		std::vector<std::vector<std::string>> addedObjects;
 		std::vector<std::string> removedObjects;
 		std::vector<std::vector<std::string>> changedObjects;
@@ -38,7 +40,7 @@ namespace ALCH
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
+	void readConfig(const std::string& folder);
 }
 
 #endif

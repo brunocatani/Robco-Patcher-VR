@@ -7,132 +7,21 @@ namespace RACES
 	{
 		patch_instruction l;
 
-		// extract objects
-		std::regex objects_regex("filterByRaces\\s*=([^:]+)", regex::icase);
-		std::smatch objects_match;
-		std::regex_search(line, objects_match, objects_regex);
-		std::vector<std::string> objects;
-		if (objects_match.empty() || objects_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string objects_str = objects_match[1];
-			std::regex objects_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
-			std::sregex_iterator objects_end;
-			while (objects_iterator != objects_end) {
-				std::string tempVar = (*objects_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (tempVar != "none") {
-					objects.push_back(tempVar);
-				}
-				++objects_iterator;
-			}
-			l.object = objects;
-		}
 
-		// extract objectsExcluded
-		std::regex objectsExcluded_regex("filterByRacesExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch objectsExcluded_match;
-		std::regex_search(line, objectsExcluded_match, objectsExcluded_regex);
-		std::vector<std::string> objectsExcluded;
-		if (objectsExcluded_match.empty() || objectsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string objectsExcluded_str = objectsExcluded_match[1];
-			std::regex objectsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objectsExcluded_iterator(objectsExcluded_str.begin(), objectsExcluded_str.end(), objectsExcluded_list_regex);
-			std::sregex_iterator objectsExcluded_end;
-			while (objectsExcluded_iterator != objectsExcluded_end) {
-				std::string tempVar = (*objectsExcluded_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (tempVar != "none") {
-					objectsExcluded.push_back(tempVar);
-				}
-				++objectsExcluded_iterator;
-			}
-			l.objectExcluded = objectsExcluded;
-		}
+		extractForms(line, "filterByRaces\\s*=([^:]+)", l.object);
 
-		// extract keywords
-		std::regex keywords_regex("filterByKeywords\\s*=([^:]+)", regex::icase);
-		std::smatch keywords_match;
-		std::regex_search(line, keywords_match, keywords_regex);
-		std::vector<std::string> keywords;
-		if (keywords_match.empty() || keywords_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywords_str = keywords_match[1];
-			std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
-			std::sregex_iterator keywords_end;
-			while (keywords_iterator != keywords_end) {
-				std::string keyword = (*keywords_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywords.push_back(keyword);
-				}
-				++keywords_iterator;
-			}
-			l.keywords = keywords;
-		}
+		extractForms(line, "filterByRacesExcluded\\s*=([^:]+)", l.objectExcluded);
 
-		// extract keywords
-		std::regex keywordsOr_regex("filterByKeywordsOr\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsOr_match;
-		std::regex_search(line, keywordsOr_match, keywordsOr_regex);
-		std::vector<std::string> keywordsOr;
-		if (keywordsOr_match.empty() || keywordsOr_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsOr_str = keywordsOr_match[1];
-			std::regex keywordsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsOr_iterator(keywordsOr_str.begin(), keywordsOr_str.end(), keywordsOr_list_regex);
-			std::sregex_iterator keywordsOr_end;
-			while (keywordsOr_iterator != keywordsOr_end) {
-				std::string keyword = (*keywordsOr_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsOr.push_back(keyword);
-				}
-				++keywordsOr_iterator;
-			}
-			l.keywordsOr = keywordsOr;
-		}
+		extractForms(line, "filterByKeywords\\s*=([^:]+)", l.keywords);
 
-		// extract keywords
-		std::regex keywordsExcluded_regex("filterByKeywordsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsExcluded_match;
-		std::regex_search(line, keywordsExcluded_match, keywordsExcluded_regex);
-		std::vector<std::string> keywordsExcluded;
-		if (keywordsExcluded_match.empty() || keywordsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsExcluded_str = keywordsExcluded_match[1];
-			std::regex keywordsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsExcluded_iterator(keywordsExcluded_str.begin(), keywordsExcluded_str.end(), keywordsExcluded_list_regex);
-			std::sregex_iterator keywordsExcluded_end;
-			while (keywordsExcluded_iterator != keywordsExcluded_end) {
-				std::string keyword = (*keywordsExcluded_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsExcluded.push_back(keyword);
-				}
-				++keywordsExcluded_iterator;
-			}
-			l.keywordsExcluded = keywordsExcluded;
-		}
+		extractForms(line, "filterByKeywordsOr\\s*=([^:]+)", l.keywordsOr);
+
+		extractForms(line, "filterByKeywordsExcluded\\s*=([^:]+)", l.keywordsExcluded);
 
 		// extract avifs
 		std::regex avifs_regex("changeAVIFS\\s*=([^:]+)", regex::icase);
 		std::smatch avifs_match;
-		std::regex_search(line, avifs_match, avifs_regex);
+		regexSearchParameter(line, avifs_match, avifs_regex);
 		std::vector<std::string> avifs_before_eq;
 		std::vector<float> avifs_min_values;
 		std::vector<float> avifs_max_values;
@@ -140,7 +29,7 @@ namespace RACES
 			//empty
 		} else {
 			std::string avifs_str = avifs_match[1];
-			std::regex avifs_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([\\d.]+)(?:\\s*~\\s*([\\d.]+))?", regex::icase);
+			std::regex avifs_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*(-?[\\d.]+)(?:\\s*~\\s*(-?[\\d.]+))?", std::regex::icase);
 			std::sregex_iterator avifs_iterator(avifs_str.begin(), avifs_str.end(), avifs_list_regex);
 			std::sregex_iterator avifs_end;
 			while (avifs_iterator != avifs_end) {
@@ -152,12 +41,14 @@ namespace RACES
 					break;
 				}
 
-				avifs_before_eq.push_back(avif);
-				avifs_min_values.push_back(std::stof((*avifs_iterator)[2]));
-				if ((*avifs_iterator)[3] != "") {
-					avifs_max_values.push_back(std::stof((*avifs_iterator)[3]));
-				} else {
-					avifs_max_values.push_back(std::stof((*avifs_iterator)[2]));
+				try {
+					const float minValue = std::stof((*avifs_iterator)[2]);
+					const float maxValue = (*avifs_iterator)[3] != "" ? std::stof((*avifs_iterator)[3]) : minValue;
+					avifs_before_eq.push_back(avif);
+					avifs_min_values.push_back(minValue);
+					avifs_max_values.push_back(maxValue);
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Invalid changeAVIFS value for '{}': {}"), avif, e.what());
 				}
 				std::string val1 = ((*avifs_iterator)[2]);
 				std::string val2 = ((*avifs_iterator)[3] != "") ? ((*avifs_iterator)[3]) : ((*avifs_iterator)[2]);
@@ -171,80 +62,26 @@ namespace RACES
 			l.values2 = avifs_max_values;
 		}
 
-		// extract keywordsToAdd
-		std::regex keywordsToAdd_regex("keywordsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToAdd_match;
-		std::regex_search(line, keywordsToAdd_match, keywordsToAdd_regex);
-		std::vector<std::string> keywordsToAdd;
-		if (keywordsToAdd_match.empty() || keywordsToAdd_match[1].str().empty()) {
-			//empty
+		extractForms(line, "keywordsToAdd\\s*=([^:]+)", l.keywordsToAdd);
+
+		extractForms(line, "keywordsToRemove\\s*=([^:]+)", l.keywordsToRemove);
+
+		extractForms(line, "spellsToAdd\\s*=([^:]+)", l.spellsToAdd);
+
+				// extract chanceRobCo
+		std::regex chanceRobCo_regex("chance\\s*=([^:]+)", regex::icase);
+		std::smatch match;
+		regexSearchParameter(line, match, chanceRobCo_regex);
+		// extract the value after the equals sign
+		if (match.empty() || match[1].str().empty()) {
+			l.chanceRobCo = "none";
 		} else {
-			std::string keywordsToAdd_str = keywordsToAdd_match[1];
-			std::regex keywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToAdd_iterator(keywordsToAdd_str.begin(), keywordsToAdd_str.end(), keywordsToAdd_list_regex);
-			std::sregex_iterator keywordsToAdd_end;
-			while (keywordsToAdd_iterator != keywordsToAdd_end) {
-				std::string keywordToAdd = (*keywordsToAdd_iterator)[0].str();
-				keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-				keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-				if (keywordToAdd != "none") {
-					//logger::info(FMT_STRING("keywordsToAdd: {}"), keywordToAdd);
-					keywordsToAdd.push_back(keywordToAdd);
-				}
-				++keywordsToAdd_iterator;
-			}
-			l.keywordsToAdd = keywordsToAdd;
+			std::string value = match[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.chanceRobCo = value;
 		}
 
-		// extract keywordsToRemove
-		std::regex keywordsToRemove_regex("keywordsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToRemove_match;
-		std::regex_search(line, keywordsToRemove_match, keywordsToRemove_regex);
-		std::vector<std::string> keywordsToRemove;
-		if (keywordsToRemove_match.empty() || keywordsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToRemove_str = keywordsToRemove_match[1];
-			std::regex keywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToRemove_iterator(keywordsToRemove_str.begin(), keywordsToRemove_str.end(), keywordsToRemove_list_regex);
-			std::sregex_iterator keywordsToRemove_end;
-			while (keywordsToRemove_iterator != keywordsToRemove_end) {
-				std::string keywordToRemove = (*keywordsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("keywordsToRemove: {}"), keywordToRemove);
-					keywordsToRemove.push_back(keywordToRemove);
-				}
-				++keywordsToRemove_iterator;
-			}
-			l.keywordsToRemove = keywordsToRemove;
-		}
-
-		// extract spellsToAdd
-		std::regex spellsToAdd_regex("spellsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch spellsToAdd_match;
-		std::regex_search(line, spellsToAdd_match, spellsToAdd_regex);
-		std::vector<std::string> spellsToAdd;
-		if (spellsToAdd_match.empty() || spellsToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string spellsToAdd_str = spellsToAdd_match[1];
-			std::regex spellsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator spellsToAdd_iterator(spellsToAdd_str.begin(), spellsToAdd_str.end(), spellsToAdd_list_regex);
-			std::sregex_iterator spellsToAdd_end;
-			while (spellsToAdd_iterator != spellsToAdd_end) {
-				std::string spellToAdd = (*spellsToAdd_iterator)[0].str();
-				spellToAdd.erase(spellToAdd.begin(), std::find_if_not(spellToAdd.begin(), spellToAdd.end(), ::isspace));
-				spellToAdd.erase(std::find_if_not(spellToAdd.rbegin(), spellToAdd.rend(), ::isspace).base(), spellToAdd.end());
-				if ((*spellsToAdd_iterator)[0].str() != "none") {
-					//logger::info(FMT_STRING("spellsToAdd: {}"), spellToAdd);
-					spellsToAdd.push_back(spellToAdd);
-				}
-				++spellsToAdd_iterator;
-			}
-			l.spellsToAdd = spellsToAdd;
-		}
+		extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
 		logger::debug(FMT_STRING("races: {}  keywords: {}  avifs: {} keywordsToAdd: {} spellsToAdd {}"), l.object.size(), l.keywords.size(), l.avifs.size(), l.keywordsToAdd.size(), l.spellsToAdd.size());
 		//logger::info("returning patch instructions");
@@ -255,15 +92,26 @@ namespace RACES
 	{
 		logger::debug("processing patch instructions");
 		const auto dataHandler = RE::TESDataHandler::GetSingleton();
-		RE::BSTArray<RE::TESRace*> RaceArray = dataHandler->GetFormArray<RE::TESRace>();
+	const auto& RaceArray = dataHandler->GetFormArray<RE::TESRace>();
 
 		for (const auto& line : tokens) {
 			//logger::info("processing config line");
 			for (const auto& curobj : RaceArray) {
+				if (!curobj) {
+					continue;
+				}
 				//logger::info("processing npc");
 				bool found = false;
 				bool keywordAnd = false;
 				bool keywordOr = false;
+
+				if (curobj->IsDeleted()) {
+					continue;
+				}
+
+				if (!FormMatchesModNames(curobj, line.modNames)) {
+					continue;
+				}
 
 				if (!line.object.empty()) {
 					//logger::info("npc not empty");
@@ -383,6 +231,19 @@ namespace RACES
 					}
 				}
 
+				if (!line.chanceRobCo.empty() && line.chanceRobCo != "none") {
+					int random_number = getRandomNumber();
+					try {
+						const int chance = std::stoi(line.chanceRobCo);
+						if (random_number > chance) {
+							logger::debug("Skipped {:08X} by chance {} > {}", curobj->formID, random_number, chance);
+							found = false;
+						}
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Race {:08X}: invalid chance value '{}': {}"), curobj->formID, line.chanceRobCo, e.what());
+					}
+				}
+
 				if (found && ShouldSkipPatch("race", curobj)) {
 					continue;
 				}
@@ -397,10 +258,11 @@ namespace RACES
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kAVIF) {
 							//logger::info("avif valid!");
 							float randomValue = 0;
-							if (!line.values1.empty() && !line.values2.empty()) {
-								//std::srand(std::time(nullptr));
-								int random_value = std::rand() % 501 + 500;
-								randomValue = floor((std::rand() / static_cast<float>(RAND_MAX)) * (line.values2[i] - line.values1[i] + 1) + line.values1[i]);
+							if (i < line.values1.size() && i < line.values2.size()) {
+								randomValue = getRandomFloat(line.values1[i], line.values2[i]);
+							} else {
+								logger::warn(FMT_STRING("Race {:08X}: missing changeAVIFS value range for entry {}"), curobj->formID, i);
+								continue;
 							}
 							changeAVIF_Race(curobj, (RE::ActorValueInfo*)currentform, randomValue);
 							logger::debug(FMT_STRING("race formid: {:08X} {} changed {:08X} {} {}"), curobj->formID, curobj->formEditorID, ((RE::ActorValueInfo*)currentform)->formID, ((RE::ActorValueInfo*)currentform)->fullName, randomValue);
@@ -450,7 +312,7 @@ namespace RACES
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
 		std::string extension = ".ini";
@@ -472,9 +334,8 @@ namespace RACES
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -494,7 +355,10 @@ namespace RACES
 								std::list<patch_instruction> tokens;
 								infile.open(fullPath);
 								while (std::getline(infile, line)) {
-									if (line.empty() || line[0] == skipChar) {
+									if (line.empty()) {
+										continue;
+									}
+									if (line[0] == skipChar) {
 										continue;
 									}
 
@@ -512,7 +376,7 @@ namespace RACES
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
 }

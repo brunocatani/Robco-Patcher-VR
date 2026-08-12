@@ -1,10 +1,12 @@
-#ifndef EXPLOSION_H
-#define EXPLOSION_H
+#pragma once
 
 #include "PCH.h"
 #include "dirent.h"
-#include "gameforms.h"
 #include "utility.h"
+#include <fstream>
+#include <list>
+#include <limits>
+#include <type_traits>
 
 namespace EXPLOSION
 {
@@ -12,23 +14,35 @@ namespace EXPLOSION
 	{
 		std::vector<std::string> objects;
 		std::vector<std::string> objectExcluded;
-		std::string damage{ "none" };
-		std::string force{ "none" };
-		std::string innerRadius{ "none" };
-		std::string outerRadius{ "none" };
-		std::string imageSpaceRadius{ "none" };
-		std::string projectileSpread{ "none" };
-		std::string projectileCount{ "none" };
-		std::string spawnProjectile{ "none" };
-		std::string soundLevel{ "none" };
-		std::string staggerMagnitude{ "none" };
-		std::string fullName{ "none" };
+		std::vector<std::string> modNames;
+		std::string projectileSpread;
+		std::string projectileCount;
+		std::string force;
+		std::string forceMult;
+		std::string damage;
+		std::string damageToAdd;
+		std::string damageMult;
+		std::string innerRadius;
+		std::string outerRadius;
+		std::string imageSpaceRadius;
+		std::string verticalOffsetMult;
+		std::string placedObjectFadeDelay;
+		std::string soundLevel;
+		std::string staggerMagnitude;
+		std::string projectileVectorX;
+		std::string projectileVectorY;
+		std::string projectileVectorZ;
+		std::string light;
+		std::string sound1;
+		std::string sound2;
+		std::string impactDataSet;
+		std::string impactPlacedObject;
+		std::string spawnProjectile;
+		std::string fullName;
 	};
 
 	line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(line_content line, RE::BGSExplosion* curobj);
+	void readConfig(const std::string& folder);
+	void patch(const line_content& line, RE::BGSExplosion* object);
 }
-
-#endif

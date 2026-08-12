@@ -140,6 +140,10 @@ namespace VRCompat
 		RE::MemoryManager& mm = RE::MemoryManager::GetSingleton();
 		auto* newArray = (RE::BGSTypedKeywordValue<TYPE>*)mm.Allocate(
 			sizeof(RE::BGSTypedKeywordValue<TYPE>) * (arr.size + 1), 0, false);
+		if (!newArray) {
+			logger::error("Typed keyword allocation failed; keeping the original array");
+			return;
+		}
 		for (std::uint32_t i = 0; i < arr.size; ++i) {
 			newArray[i] = arr.array[i];
 		}
@@ -211,12 +215,35 @@ namespace VRCompat
 	// These types inherit TESContainer which has containerObjects array
 	inline void RemoveObject(RE::TESContainer* container, RE::TESBoundObject* obj)
 	{
+		if (!container || !obj || !container->containerObjects) {
+			return;
+		}
 		for (std::uint32_t i = 0; i < container->numContainerObjects; ++i) {
-			if (container->containerObjects[i]->obj == obj) {
-				for (std::uint32_t j = i; j < container->numContainerObjects - 1; ++j) {
-					container->containerObjects[j] = container->containerObjects[j + 1];
+			if (auto* entry = container->containerObjects[i]; entry && entry->obj == obj) {
+				const auto replacementCount = container->numContainerObjects - 1;
+				RE::ContainerObject** replacement = nullptr;
+				auto& memoryManager = RE::MemoryManager::GetSingleton();
+				if (replacementCount > 0) {
+					replacement = static_cast<RE::ContainerObject**>(memoryManager.Allocate(
+						static_cast<std::size_t>(replacementCount) * sizeof(RE::ContainerObject*), 0, false));
+					if (!replacement) {
+						logger::error("Container removal allocation failed; keeping the original item list");
+						return;
+					}
+					std::uint32_t outputIndex = 0;
+					for (std::uint32_t j = 0; j < container->numContainerObjects; ++j) {
+						if (j != i) {
+							replacement[outputIndex++] = container->containerObjects[j];
+						}
+					}
 				}
-				container->numContainerObjects--;
+
+				auto** previous = container->containerObjects;
+				container->containerObjects = replacement;
+				container->numContainerObjects = replacementCount;
+				memoryManager.Deallocate(previous, false);
+				delete entry->itemExtra;
+				delete entry;
 				return;
 			}
 		}

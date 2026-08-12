@@ -31,6 +31,8 @@ namespace PATCH
 		std::uint32_t rulesParsed{ 0 };
 		std::uint32_t invalidRules{ 0 };
 		std::uint32_t matchedRecords{ 0 };
+		std::uint32_t patchCalls{ 0 };
+		std::uint32_t wouldPatchRecords{ 0 };
 		std::uint32_t appliedMutations{ 0 };
 		std::uint32_t wouldApplyMutations{ 0 };
 		std::uint32_t skippedMutations{ 0 };
@@ -99,6 +101,7 @@ namespace PATCH
 		void RecordRule(const std::string& category);
 		void RecordInvalidRule(const std::string& category, const std::string& message);
 		void RecordMatch(const std::string& category, const std::string& target = {});
+		void RecordPatchCall(const std::string& category, bool dryRun);
 		void RecordMutation(
 			const std::string& category,
 			const std::string& target,
@@ -145,6 +148,7 @@ namespace PATCH
 	void RecordRule(const std::string& category);
 	void RecordInvalidRule(const std::string& category, const std::string& message);
 	void RecordMatch(const std::string& category, const std::string& target = {});
+	void RecordPatchCall(const std::string& category);
 	void RecordMutation(
 		const std::string& category,
 		const std::string& target,

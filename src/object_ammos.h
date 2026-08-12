@@ -28,12 +28,18 @@ namespace AMMOS
 		std::vector<std::string> keywordsToAdd;
 		std::string weight;
 		std::string weightLessThan;
+		std::vector<std::string> stringContainsAnd;
+		std::vector<std::string> stringContainsOr;
+		std::vector<std::string> stringContainsExclude;
+		std::vector<std::string> modNames;
+		std::string attackDamageMult;
+		std::string attackDamageToAdd;
 	};
 
 	struct line_content create_patch_instruction_ammo(const std::string& line);
 	void process_patch_instructions_ammo(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(AMMOS::line_content line, RE::TESAmmo* curobj);
+	void readConfig(const std::string& folder);
+	void patch(const AMMOS::line_content& line, RE::TESAmmo* curobj);
 }
 
 #endif

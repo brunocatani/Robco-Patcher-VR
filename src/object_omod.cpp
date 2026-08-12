@@ -1,75 +1,25 @@
 #include "object_omod.h"
+#include "EngineAdapters.h"
 #include <cstring>
 #include <utility.h>
+#include <unordered_set>
 using namespace RE::detail;
 namespace OMOD
 {
 	namespace
 	{
-		template <class Predicate>
-		std::uint32_t remove_omod_property_entries(RE::BGSMod::Attachment::Mod* omod, Predicate&& shouldRemove)
+		bool ReadData(RE::BGSMod::Attachment::Mod* omod, RE::BGSMod::Attachment::Mod::Data& data)
 		{
-			if (!omod || !omod->buffer) {
-				return 0;
+			if (EngineAdapters::ReadOmodData(omod, data)) {
+				return true;
 			}
 
-			RE::BGSMod::Attachment::Mod::Data data;
-			omod->GetData(data);
-			if (!data.propertyMods || data.propertyModCount == 0) {
-				return 0;
+			static bool logged = false;
+			if (!logged) {
+				logger::critical("OMOD patching disabled because the verified FO4VR data adapter is unavailable");
+				logged = true;
 			}
-
-			std::vector<std::byte> keptProperties;
-			keptProperties.reserve(data.propertyModCount * sizeof(RE::BGSMod::Property::Mod));
-			std::uint32_t removed = 0;
-			for (std::uint32_t i = 0; i < data.propertyModCount; ++i) {
-				if (shouldRemove(data.propertyMods[i])) {
-					++removed;
-				} else {
-					const auto* propertyBytes = reinterpret_cast<const std::byte*>(&data.propertyMods[i]);
-					keptProperties.insert(
-						keptProperties.end(),
-						propertyBytes,
-						propertyBytes + sizeof(RE::BGSMod::Property::Mod));
-				}
-			}
-
-			if (removed == 0) {
-				return 0;
-			}
-
-			const auto attachmentBytes = data.attachmentCount * sizeof(RE::BGSMod::Attachment::Instance);
-			const auto propertyBytes = keptProperties.size();
-			const auto dataBytes = attachmentBytes + propertyBytes;
-
-			auto* write = omod->buffer;
-			if (attachmentBytes > 0 && data.attachments) {
-				std::memmove(write, data.attachments, attachmentBytes);
-				write += attachmentBytes;
-			}
-			if (propertyBytes > 0) {
-				std::memmove(write, keptProperties.data(), propertyBytes);
-			}
-
-			auto* blocks = reinterpret_cast<RE::BSTDataBuffer<2>::Block*>(omod->buffer + dataBytes);
-			std::uint32_t blockIndex = 0;
-			if (attachmentBytes > 0) {
-				blocks[blockIndex].size = static_cast<std::uint32_t>(attachmentBytes);
-				blocks[blockIndex].id = 0;
-				++blockIndex;
-			}
-			if (propertyBytes > 0) {
-				blocks[blockIndex].size = static_cast<std::uint32_t>(propertyBytes);
-				blocks[blockIndex].id = 1;
-				++blockIndex;
-			}
-			for (; blockIndex < 2; ++blockIndex) {
-				blocks[blockIndex].size = 0;
-				blocks[blockIndex].id = 0xFF;
-			}
-
-			omod->size = static_cast<std::uint32_t>(dataBytes);
-			return removed;
+			return false;
 		}
 	}
 
@@ -80,7 +30,7 @@ namespace OMOD
 		// extract connectionAnd
 		std::regex connectionAnd_regex("filterConnection\\s*=([^:]+)", regex::icase);
 		std::smatch connectionAnd_match;
-		std::regex_search(line, connectionAnd_match, connectionAnd_regex);
+		regexSearchParameter(line, connectionAnd_match, connectionAnd_regex);
 		// extract the value after the equals sign
 		if (connectionAnd_match.empty() || connectionAnd_match[1].str().empty()) {
 		} else {
@@ -99,13 +49,13 @@ namespace OMOD
 		// extract objects
 		std::regex objects_regex("filterByOMod\\s*=([^:]+)", regex::icase);
 		std::smatch objects_match;
-		std::regex_search(line, objects_match, objects_regex);
+		regexSearchParameter(line, objects_match, objects_regex);
 		std::vector<std::string> objects;
 		if (objects_match.empty() || objects_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string objects_str = objects_match[1];
-			std::regex objects_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
+			std::regex objects_list_regex("[^,]+", regex::icase);
 			std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
 			std::sregex_iterator objects_end;
 			while (objects_iterator != objects_end) {
@@ -121,10 +71,12 @@ namespace OMOD
 			l.objects = objects;
 		}
 
+		extractForms(line, "filterByOModExcluded\\s*=([^:]+)", l.objectsExcluded);
+
 		// extract targetType
 		std::regex targetType_regex("filterByFormType\\s*=([^:]+)", regex::icase);
 		std::smatch targetTypematch;
-		std::regex_search(line, targetTypematch, targetType_regex);
+		regexSearchParameter(line, targetTypematch, targetType_regex);
 		// extract the value after the equals sign
 		if (targetTypematch.empty() || targetTypematch[1].str().empty()) {
 			l.targetType = "none";
@@ -139,7 +91,7 @@ namespace OMOD
 					// extract FormAnd
 		std::regex FormAnd_regex("filterByForms\\s*=([^:]+)", regex::icase);
 		std::smatch FormAnd_match;
-		std::regex_search(line, FormAnd_match, FormAnd_regex);
+		regexSearchParameter(line, FormAnd_match, FormAnd_regex);
 		// extract the value after the equals sign
 		if (FormAnd_match.empty() || FormAnd_match[1].str().empty()) {
 		} else {
@@ -158,7 +110,7 @@ namespace OMOD
 				// extract PropertyAnd
 		std::regex PropertyAnd_regex("filterByPropertiesAnd\\s*=([^:]+)", regex::icase);
 		std::smatch PropertyAnd_match;
-		std::regex_search(line, PropertyAnd_match, PropertyAnd_regex);
+		regexSearchParameter(line, PropertyAnd_match, PropertyAnd_regex);
 		// extract the value after the equals sign
 		if (PropertyAnd_match.empty() || PropertyAnd_match[1].str().empty()) {
 		} else {
@@ -177,7 +129,7 @@ namespace OMOD
 				// extract PropertyOr
 		std::regex PropertyOr_regex("filterByPropertiesOr\\s*=([^:]+)", regex::icase);
 		std::smatch PropertyOr_match;
-		std::regex_search(line, PropertyOr_match, PropertyOr_regex);
+		regexSearchParameter(line, PropertyOr_match, PropertyOr_regex);
 		// extract the value after the equals sign
 		if (PropertyOr_match.empty() || PropertyOr_match[1].str().empty()) {
 		} else {
@@ -196,7 +148,7 @@ namespace OMOD
 				// extract PropertyExclude
 		std::regex PropertyExclude_regex("filterByPropertiesExclude\\s*=([^:]+)", regex::icase);
 		std::smatch PropertyExclude_match;
-		std::regex_search(line, PropertyExclude_match, PropertyExclude_regex);
+		regexSearchParameter(line, PropertyExclude_match, PropertyExclude_regex);
 		// extract the value after the equals sign
 		if (PropertyExclude_match.empty() || PropertyExclude_match[1].str().empty()) {
 		} else {
@@ -215,7 +167,7 @@ namespace OMOD
 			// extract stringContainsAnd
 		std::regex stringContainsAnd_regex("filterByNameContainsAnd\\s*=([^:]+)", regex::icase);
 		std::smatch stringContainsAnd_match;
-		std::regex_search(line, stringContainsAnd_match, stringContainsAnd_regex);
+		regexSearchParameter(line, stringContainsAnd_match, stringContainsAnd_regex);
 		// extract the value after the equals sign
 		if (stringContainsAnd_match.empty() || stringContainsAnd_match[1].str().empty()) {
 		} else {
@@ -234,7 +186,7 @@ namespace OMOD
 					// extract stringContainsOr
 		std::regex stringContainsOr_regex("filterByNameContainsOr\\s*=([^:]+)", regex::icase);
 		std::smatch stringContainsOr_match;
-		std::regex_search(line, stringContainsOr_match, stringContainsOr_regex);
+		regexSearchParameter(line, stringContainsOr_match, stringContainsOr_regex);
 		// extract the value after the equals sign
 		if (stringContainsOr_match.empty() || stringContainsOr_match[1].str().empty()) {
 		} else {
@@ -252,7 +204,7 @@ namespace OMOD
 		// extract stringContainsExclude
 		std::regex stringContainsExclude_regex("filterByNameContainsExclude\\s*=([^:]+)", regex::icase);
 		std::smatch stringContainsExclude_match;
-		std::regex_search(line, stringContainsExclude_match, stringContainsExclude_regex);
+		regexSearchParameter(line, stringContainsExclude_match, stringContainsExclude_regex);
 		// extract the value after the equals sign
 		if (stringContainsExclude_match.empty() || stringContainsExclude_match[1].str().empty()) {
 		} else {
@@ -270,13 +222,13 @@ namespace OMOD
 				// extract keywords
 		std::regex keywords_regex("filterByAttachPoint\\s*=([^:]+)", regex::icase);
 		std::smatch keywords_match;
-		std::regex_search(line, keywords_match, keywords_regex);
+		regexSearchParameter(line, keywords_match, keywords_regex);
 		std::vector<std::string> keywords;
 		if (keywords_match.empty() || keywords_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string keywords_str = keywords_match[1];
-			std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
+			std::regex keywords_list_regex("[^,]+", regex::icase);
 			std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
 			std::sregex_iterator keywords_end;
 			while (keywords_iterator != keywords_end) {
@@ -293,14 +245,13 @@ namespace OMOD
 
 		std::regex property_regex("changeOModPropertiesFloat\\s*=([^:]+)", regex::icase);
 		std::smatch property_match;
-		std::regex_search(line, property_match, property_regex);
+		regexSearchParameter(line, property_match, property_regex);
 		std::vector<std::string> property;
 		if (property_match.empty() || property_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string property_str = property_match[1];
 			std::regex pattern("(\\w+)\\s*=\\s*([^,]+)", regex::icase);
-			std::smatch match;
 
 			auto begin = std::sregex_iterator(property_str.begin(), property_str.end(), pattern);
 			auto end = std::sregex_iterator();
@@ -315,14 +266,13 @@ namespace OMOD
 
 		std::regex propertyVP_regex("changeOModPropertiesVP\\s*=([^:]+)", regex::icase);
 		std::smatch propertyVP_match;
-		std::regex_search(line, propertyVP_match, propertyVP_regex);
+		regexSearchParameter(line, propertyVP_match, propertyVP_regex);
 		std::vector<std::string> propertyVP;
 		if (propertyVP_match.empty() || propertyVP_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string propertyVP_str = propertyVP_match[1];
 			std::regex pattern("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([^,]+)", regex::icase);
-			std::smatch match;
 
 			auto begin = std::sregex_iterator(propertyVP_str.begin(), propertyVP_str.end(), pattern);
 			auto end = std::sregex_iterator();
@@ -337,14 +287,13 @@ namespace OMOD
 
 		std::regex propertyForm_regex("changeOModPropertiesForm\\s*=([^:]+)", regex::icase);
 		std::smatch propertyForm_match;
-		std::regex_search(line, propertyForm_match, propertyForm_regex);
+		regexSearchParameter(line, propertyForm_match, propertyForm_regex);
 		std::vector<std::string> propertyForm;
 		if (propertyForm_match.empty() || propertyForm_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string propertyForm_str = propertyForm_match[1];
 			std::regex pattern("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})", regex::icase);
-			std::smatch match;
 
 			auto begin = std::sregex_iterator(propertyForm_str.begin(), propertyForm_str.end(), pattern);
 			auto end = std::sregex_iterator();
@@ -360,7 +309,7 @@ namespace OMOD
 		// extract removeProperty
 		std::regex removeProperty_regex("removeOModProperties\\s*=([^:]+)", regex::icase);
 		std::smatch removeProperty_match;
-		std::regex_search(line, removeProperty_match, removeProperty_regex);
+		regexSearchParameter(line, removeProperty_match, removeProperty_regex);
 		// extract the value after the equals sign
 		if (removeProperty_match.empty() || removeProperty_match[1].str().empty()) {
 		} else {
@@ -379,11 +328,13 @@ namespace OMOD
 				// extract addProperty
 		std::regex addProperty_regex("oModPropertiesToAdd\\s*=([^:]+)", regex::icase);
 		std::smatch addProperty_match;
-		std::regex_search(line, addProperty_match, addProperty_regex);
+		regexSearchParameter(line, addProperty_match, addProperty_regex);
 		// extract the value after the equals sign
 		if (addProperty_match.empty() || addProperty_match[1].str().empty()) {
 		} else {
 			std::string value = addProperty_match[1].str();
+			value = std::regex_replace(value, std::regex("form\\s*,\\s*int", std::regex::icase), "formint");
+			value = std::regex_replace(value, std::regex("form(?:id)?\\s*,\\s*float", std::regex::icase), "pair");
 			//value.erase(std::add_if(value.begin(), value.end(), ::isspace), value.end());
 			std::stringstream ss(value);
 			std::string item;
@@ -398,7 +349,7 @@ namespace OMOD
 				// extract removePropertyForm
 		std::regex removePropertyForm_regex("removeOModPropertiesForm\\s*=([^:]+)", regex::icase);
 		std::smatch removePropertyForm_match;
-		std::regex_search(line, removePropertyForm_match, removePropertyForm_regex);
+		regexSearchParameter(line, removePropertyForm_match, removePropertyForm_regex);
 		// extract the value after the equals sign
 		if (removePropertyForm_match.empty() || removePropertyForm_match[1].str().empty()) {
 		} else {
@@ -417,7 +368,7 @@ namespace OMOD
 				// extract removePropertyPV
 		std::regex removePropertyPV_regex("removeOModPropertiesVP\\s*=([^:]+)", regex::icase);
 		std::smatch removePropertyPV_match;
-		std::regex_search(line, removePropertyPV_match, removePropertyPV_regex);
+		regexSearchParameter(line, removePropertyPV_match, removePropertyPV_regex);
 		// extract the value after the equals sign
 		if (removePropertyPV_match.empty() || removePropertyPV_match[1].str().empty()) {
 		} else {
@@ -436,7 +387,7 @@ namespace OMOD
 		// extract fullName
 		std::regex fullName_regex("fullName\\s*=\\s*~([^~]+?)\\s*~");
 		std::smatch namematch;
-		std::regex_search(line, namematch, fullName_regex);
+		regexSearchParameter(line, namematch, fullName_regex);
 		// extract the value after the equals sign
 		if (namematch.empty() || namematch[1].str().empty()) {
 			l.fullName = "none";
@@ -451,14 +402,13 @@ namespace OMOD
 		// extract functionType
 		std::regex functionType_regex("changeOModFunctionType\\s*=([^:]+)", regex::icase);
 		std::smatch functionType_match;
-		std::regex_search(line, functionType_match, functionType_regex);
+		regexSearchParameter(line, functionType_match, functionType_regex);
 		std::vector<std::string> functionType;
 		if (functionType_match.empty() || functionType_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string functionType_str = functionType_match[1];
 			std::regex pattern("(\\w+)\\s*=\\s*([^,]+)", regex::icase);
-			std::smatch match;
 
 			auto begin = std::sregex_iterator(functionType_str.begin(), functionType_str.end(), pattern);
 			auto end = std::sregex_iterator();
@@ -472,595 +422,276 @@ namespace OMOD
 		}
 
 		// extract attachParentSlotKeywordsToAdd
-		std::regex attachParentSlotKeywordsToAdd_regex("attachParentSlotKeywordsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch attachParentSlotKeywordsToAdd_match;
-		std::regex_search(line, attachParentSlotKeywordsToAdd_match, attachParentSlotKeywordsToAdd_regex);
-		std::vector<std::string> attachParentSlotKeywordsToAdd;
-		if (attachParentSlotKeywordsToAdd_match.empty() || attachParentSlotKeywordsToAdd_match[1].str().empty()) {
-			// ammos_match[1] is null
-		} else {
-			std::string attachParentSlotKeywordsToAdd_str = attachParentSlotKeywordsToAdd_match[1];
-			std::regex attachParentSlotKeywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator attachParentSlotKeywordsToAdd_iterator(attachParentSlotKeywordsToAdd_str.begin(), attachParentSlotKeywordsToAdd_str.end(), attachParentSlotKeywordsToAdd_list_regex);
-			std::sregex_iterator attachParentSlotKeywordsToAdd_end;
-			while (attachParentSlotKeywordsToAdd_iterator != attachParentSlotKeywordsToAdd_end) {
-				std::string keywordToAdd = (*attachParentSlotKeywordsToAdd_iterator)[0].str();
-				keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-				keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-				if (keywordToAdd != "none") {
-					//logger::info(FMT_STRING("attachParentSlotKeywordsToAdd: {}"), keywordToAdd);
-					attachParentSlotKeywordsToAdd.push_back(keywordToAdd);
-				}
-				++attachParentSlotKeywordsToAdd_iterator;
-			}
-			l.attachParentSlotKeywordsToAdd = attachParentSlotKeywordsToAdd;
-		}
+		extractForms(line, "attachParentSlotKeywordsToAdd\\s*=([^:]+)", l.attachParentSlotKeywordsToAdd);
+		//std::regex attachParentSlotKeywordsToAdd_regex("attachParentSlotKeywordsToAdd\\s*=([^:]+)", regex::icase);
+		//std::smatch attachParentSlotKeywordsToAdd_match;
+		//std::regex_search(line, attachParentSlotKeywordsToAdd_match, attachParentSlotKeywordsToAdd_regex);
+		//std::vector<std::string> attachParentSlotKeywordsToAdd;
+		//if (attachParentSlotKeywordsToAdd_match.empty() || attachParentSlotKeywordsToAdd_match[1].str().empty()) {
+		//	// ammos_match[1] is null
+		//} else {
+		//	std::string attachParentSlotKeywordsToAdd_str = attachParentSlotKeywordsToAdd_match[1];
+		//	std::regex attachParentSlotKeywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
+		//	std::sregex_iterator attachParentSlotKeywordsToAdd_iterator(attachParentSlotKeywordsToAdd_str.begin(), attachParentSlotKeywordsToAdd_str.end(), attachParentSlotKeywordsToAdd_list_regex);
+		//	std::sregex_iterator attachParentSlotKeywordsToAdd_end;
+		//	while (attachParentSlotKeywordsToAdd_iterator != attachParentSlotKeywordsToAdd_end) {
+		//		std::string keywordToAdd = (*attachParentSlotKeywordsToAdd_iterator)[0].str();
+		//		keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
+		//		keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
+		//		if (keywordToAdd != "none") {
+		//			//logger::info(FMT_STRING("attachParentSlotKeywordsToAdd: {}"), keywordToAdd);
+		//			attachParentSlotKeywordsToAdd.push_back(keywordToAdd);
+		//		}
+		//		++attachParentSlotKeywordsToAdd_iterator;
+		//	}
+		//	l.attachParentSlotKeywordsToAdd = attachParentSlotKeywordsToAdd;
+		//}
 
 		// extract attachParentSlotKeywordsToRemove
-		std::regex attachParentSlotKeywordsToRemove_regex("attachParentSlotKeywordsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch attachParentSlotKeywordsToRemove_match;
-		std::regex_search(line, attachParentSlotKeywordsToRemove_match, attachParentSlotKeywordsToRemove_regex);
-		std::vector<std::string> attachParentSlotKeywordsToRemove;
-		if (attachParentSlotKeywordsToRemove_match.empty() || attachParentSlotKeywordsToRemove_match[1].str().empty()) {
-			// ammos_match[1] is null
-		} else {
-			std::string attachParentSlotKeywordsToRemove_str = attachParentSlotKeywordsToRemove_match[1];
-			std::regex attachParentSlotKeywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator attachParentSlotKeywordsToRemove_iterator(attachParentSlotKeywordsToRemove_str.begin(), attachParentSlotKeywordsToRemove_str.end(), attachParentSlotKeywordsToRemove_list_regex);
-			std::sregex_iterator attachParentSlotKeywordsToRemove_end;
-			while (attachParentSlotKeywordsToRemove_iterator != attachParentSlotKeywordsToRemove_end) {
-				std::string keywordToRemove = (*attachParentSlotKeywordsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("attachParentSlotKeywordsToRemove: {}"), keywordToRemove);
-					attachParentSlotKeywordsToRemove.push_back(keywordToRemove);
-				}
-				++attachParentSlotKeywordsToRemove_iterator;
-			}
-			l.attachParentSlotKeywordsToRemove = attachParentSlotKeywordsToRemove;
-		}
+		extractForms(line, "attachParentSlotKeywordsToRemove\\s*=([^:]+)", l.attachParentSlotKeywordsToRemove);
+		//std::regex attachParentSlotKeywordsToRemove_regex("attachParentSlotKeywordsToRemove\\s*=([^:]+)", regex::icase);
+		//std::smatch attachParentSlotKeywordsToRemove_match;
+		//std::regex_search(line, attachParentSlotKeywordsToRemove_match, attachParentSlotKeywordsToRemove_regex);
+		//std::vector<std::string> attachParentSlotKeywordsToRemove;
+		//if (attachParentSlotKeywordsToRemove_match.empty() || attachParentSlotKeywordsToRemove_match[1].str().empty()) {
+		//	// ammos_match[1] is null
+		//} else {
+		//	std::string attachParentSlotKeywordsToRemove_str = attachParentSlotKeywordsToRemove_match[1];
+		//	std::regex attachParentSlotKeywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
+		//	std::sregex_iterator attachParentSlotKeywordsToRemove_iterator(attachParentSlotKeywordsToRemove_str.begin(), attachParentSlotKeywordsToRemove_str.end(), attachParentSlotKeywordsToRemove_list_regex);
+		//	std::sregex_iterator attachParentSlotKeywordsToRemove_end;
+		//	while (attachParentSlotKeywordsToRemove_iterator != attachParentSlotKeywordsToRemove_end) {
+		//		std::string keywordToRemove = (*attachParentSlotKeywordsToRemove_iterator)[0].str();
+		//		keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
+		//		keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
+		//		if (keywordToRemove != "none") {
+		//			//logger::info(FMT_STRING("attachParentSlotKeywordsToRemove: {}"), keywordToRemove);
+		//			attachParentSlotKeywordsToRemove.push_back(keywordToRemove);
+		//		}
+		//		++attachParentSlotKeywordsToRemove_iterator;
+		//	}
+		//	l.attachParentSlotKeywordsToRemove = attachParentSlotKeywordsToRemove;
+		//}
 
 		// extract attachPoint
-		std::regex attachPoint_regex("setAttachPoint\\s*=([^:]+)", regex::icase);
-		std::smatch attachPointmatch;
-		std::regex_search(line, attachPointmatch, attachPoint_regex);
-		// extract the value after the equals sign
-		if (attachPointmatch.empty() || attachPointmatch[1].str().empty()) {
-			l.attachPoint = "none";
-		} else {
-			std::string keyword = attachPointmatch[1].str();
-			keyword.erase(std::remove_if(keyword.begin(), keyword.end(), ::isspace), keyword.end());
-			l.attachPoint = keyword;
+		extractValueString(line, "setAttachPoint\\s*=([^:]+)", l.attachPoint);
+		//std::regex attachPoint_regex("setAttachPoint\\s*=([^:]+)", regex::icase);
+		//std::smatch attachPointmatch;
+		//std::regex_search(line, attachPointmatch, attachPoint_regex);
+		//// extract the value after the equals sign
+		//if (attachPointmatch.empty() || attachPointmatch[1].str().empty()) {
+		//	l.attachPoint = "none";
+		//} else {
+		//	std::string keyword = attachPointmatch[1].str();
+		//	keyword.erase(std::remove_if(keyword.begin(), keyword.end(), ::isspace), keyword.end());
+		//	l.attachPoint = keyword;
+		//}
+
+
+		static const std::regex unsupportedTargetKeywordRegex(R"((^|:)\s*targetKeywordsTo(Add|Remove)\s*=)", std::regex::icase);
+		if (std::regex_search(line, unsupportedTargetKeywordRegex)) {
+			logger::warn("OMOD targetKeywordsToAdd/Remove is unsupported by both the flat and VR mutation paths; skipping the directive");
 		}
 
-		// extract keywordsToAdd
-		std::regex keywordsToAdd_regex("targetKeywordsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToAdd_match;
-		std::regex_search(line, keywordsToAdd_match, keywordsToAdd_regex);
-		std::vector<std::string> keywordsToAdd;
-		if (keywordsToAdd_match.empty() || keywordsToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToAdd_str = keywordsToAdd_match[1];
-			std::regex keywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToAdd_iterator(keywordsToAdd_str.begin(), keywordsToAdd_str.end(), keywordsToAdd_list_regex);
-			std::sregex_iterator keywordsToAdd_end;
-			while (keywordsToAdd_iterator != keywordsToAdd_end) {
-				std::string keywordToAdd = (*keywordsToAdd_iterator)[0].str();
-				keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-				keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-				if (keywordToAdd != "none") {
-					//logger::info(FMT_STRING("keywordsToAdd: {}"), keywordToAdd);
-					keywordsToAdd.push_back(keywordToAdd);
-				}
-				++keywordsToAdd_iterator;
-			}
-			l.keywordsToAdd = keywordsToAdd;
-		}
+		extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
-		// extract keywordsToRemove
-		std::regex keywordsToRemove_regex("targetKeywordsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToRemove_match;
-		std::regex_search(line, keywordsToRemove_match, keywordsToRemove_regex);
-		std::vector<std::string> keywordsToRemove;
-		if (keywordsToRemove_match.empty() || keywordsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToRemove_str = keywordsToRemove_match[1];
-			std::regex keywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToRemove_iterator(keywordsToRemove_str.begin(), keywordsToRemove_str.end(), keywordsToRemove_list_regex);
-			std::sregex_iterator keywordsToRemove_end;
-			while (keywordsToRemove_iterator != keywordsToRemove_end) {
-				std::string keywordToRemove = (*keywordsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("keywordsToRemove: {}"), keywordToRemove);
-					keywordsToRemove.push_back(keywordToRemove);
-				}
-				++keywordsToRemove_iterator;
-			}
-			l.keywordsToRemove = keywordsToRemove;
-		}
-		
 		return l;
 	}
 
 	void process_patch_instructions(const std::list<line_content>& tokens)
 	{
 		logger::debug("processing patch instructions");
-		const auto dataHandler = RE::TESDataHandler::GetSingleton();
-		RE::BSTArray<RE::BGSMod::Attachment::Mod*> objectArray = dataHandler->GetFormArray<RE::BGSMod::Attachment::Mod>();
+		auto* dataHandler = RE::TESDataHandler::GetSingleton();
+		if (!dataHandler) {
+			logger::warn("OMOD Patcher: TESDataHandler is unavailable");
+			return;
+		}
+		const auto& objectArray = dataHandler->GetFormArray<RE::BGSMod::Attachment::Mod>();
+
 		for (const auto& line : tokens) {
+			const auto connection = toLowerCase(line.connectionAnd);
+			const bool connectWithAnd = connection == "and";
+			if (!connection.empty() && connection != "none" && connection != "or" && !connectWithAnd) {
+				logger::warn(FMT_STRING("OMOD Patcher: unknown filterConnection '{}'; expected 'and', 'or', or 'none'. Using OR."), line.connectionAnd);
+			}
 
-
-		if (!line.objects.empty()) {
-				//logger::info("npc not empty");
-				for (const auto& objectstring : line.objects) {
-					RE::TESForm* currentform = nullptr;
-					RE::BGSMod::Attachment::Mod* object = nullptr;
-
-					std::string string_form = objectstring;
-					currentform = GetFormFromIdentifier(string_form);
-					if (currentform && currentform->formType == RE::ENUM_FORM_ID::kOMOD) {
-						object = (RE::BGSMod::Attachment::Mod*)currentform;
-						patch(line, object);
-
-					}
+			const auto targetTypeName = toLowerCase(line.targetType);
+			const bool hasTargetType = !targetTypeName.empty() && targetTypeName != "none";
+			RE::ENUM_FORM_ID expectedTargetType = RE::ENUM_FORM_ID::kNONE;
+			if (hasTargetType) {
+				if (targetTypeName == "weapon") {
+					expectedTargetType = RE::ENUM_FORM_ID::kWEAP;
+				} else if (targetTypeName == "armor") {
+					expectedTargetType = RE::ENUM_FORM_ID::kARMO;
+				} else if (targetTypeName == "npc") {
+					expectedTargetType = RE::ENUM_FORM_ID::kNPC_;
+				} else {
+					logger::warn(FMT_STRING("OMOD Patcher: unknown filterByFormType '{}'; rule skipped"), line.targetType);
+					continue;
 				}
 			}
 
-			if (!line.objects.empty() && line.stringContainsAnd.empty() && line.stringContainsOr.empty() && line.PropertyAnd.empty() && line.PropertyOr.empty()) {
-				//logger::info("continue");
-				continue;
+			std::unordered_set<std::uint32_t> selectedOMods;
+			for (const auto& identifier : line.objects) {
+				auto* form = GetFormFromIdentifier(identifier);
+				if (!form || form->formType != RE::ENUM_FORM_ID::kOMOD) {
+					logger::warn(FMT_STRING("OMOD Patcher: filterByOMod form not found or not an OMOD: {}"), identifier);
+					continue;
+				}
+				selectedOMods.insert(form->formID);
 			}
 
-			for (const auto& curobj : objectArray) {
-				bool found = false;
-				bool stringAnd = false;
-				bool stringOr = false;
-				bool propertyAnd = false;
-				bool propertyOr = false;
-				bool connectionAnd = false;
-				bool attachPoint = false;
-				//
-				//if (curobj->targetFormType == RE::ENUM_FORM_ID::kWEAP) {
-				//	logger::debug(FMT_STRING("IS WEAP OMOD {:08X}"), curobj->formID);
-				//} else if (curobj->targetFormType == RE::ENUM_FORM_ID::kARMO) {
-				//	logger::debug(FMT_STRING("IS ARMO OMOD {:08X}"), curobj->formID);
-				//}
-				
+			std::unordered_set<std::uint32_t> excludedOMods;
+			for (const auto& identifier : line.objectsExcluded) {
+				auto* form = GetFormFromIdentifier(identifier);
+				if (!form || form->formType != RE::ENUM_FORM_ID::kOMOD) {
+					logger::warn(FMT_STRING("OMOD Patcher: filterByOModExcluded form not found or not an OMOD: {}"), identifier);
+					continue;
+				}
+				excludedOMods.insert(form->formID);
+			}
 
+			std::vector<std::uint32_t> referencedForms;
+			bool referencedFormsValid = true;
+			for (const auto& identifier : line.FormAnd) {
+				auto* form = GetFormFromIdentifier(identifier);
+				if (!form) {
+					logger::warn(FMT_STRING("OMOD Patcher: filterByForms form not found: {}"), identifier);
+					referencedFormsValid = false;
+					continue;
+				}
+				referencedForms.push_back(form->formID);
+			}
 
+			std::vector<std::uint32_t> attachPoints;
+			for (const auto& identifier : line.attachPointKeywordsFilter) {
+				auto* form = GetFormFromIdentifier(identifier);
+				if (!form) {
+					logger::warn(FMT_STRING("OMOD Patcher: filterByAttachPoint form not found: {}"), identifier);
+					continue;
+				}
+				attachPoints.push_back(form->formID);
+			}
 
-				if (!line.targetType.empty() && line.targetType != "none") {
-					if (toLowerCase(line.targetType) == "weapon" && curobj->targetFormType == RE::ENUM_FORM_ID::kARMO) {
-						continue;
-					} else if (toLowerCase(line.targetType) == "armor" && curobj->targetFormType == RE::ENUM_FORM_ID::kWEAP) {
-						continue;
+			auto lowerValues = [](const std::vector<std::string>& values) {
+				std::vector<std::string> result;
+				result.reserve(values.size());
+				for (const auto& value : values) {
+					result.push_back(toLowerCase(value));
+				}
+				return result;
+			};
+			const auto nameAndValues = lowerValues(line.stringContainsAnd);
+			const auto nameOrValues = lowerValues(line.stringContainsOr);
+			const auto nameExcludeValues = lowerValues(line.stringContainsExclude);
+
+			for (auto* curobj : objectArray) {
+				if (!curobj || curobj->IsDeleted() || excludedOMods.contains(curobj->formID) || !FormMatchesModNames(curobj, line.modNames)) {
+					continue;
+				}
+
+				RE::BGSMod::Attachment::Mod::Data data{};
+				if (!ReadData(curobj, data)) {
+					continue;
+				}
+				if (hasTargetType && data.targetFormType.get() != expectedTargetType) {
+					continue;
+				}
+
+				const bool needsProperties = !line.PropertyAnd.empty() || !line.PropertyOr.empty() ||
+					!line.PropertyExclude.empty() || !line.FormAnd.empty();
+				if (needsProperties && data.propertyModCount > 0 && !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
+					continue;
+				}
+
+				const bool directMatch = !line.objects.empty() && selectedOMods.contains(curobj->formID);
+				std::string lowercaseFullName;
+				if (!nameAndValues.empty() || !nameOrValues.empty() || !nameExcludeValues.empty()) {
+					lowercaseFullName = toLowerCase(std::string(curobj->fullName.c_str()));
+				}
+
+				const bool nameAndMatch = nameAndValues.empty() || std::all_of(nameAndValues.begin(), nameAndValues.end(), [&](const auto& value) {
+					return lowercaseFullName.find(value) != std::string::npos;
+				});
+				const bool nameOrMatch = nameOrValues.empty() || std::any_of(nameOrValues.begin(), nameOrValues.end(), [&](const auto& value) {
+					return lowercaseFullName.find(value) != std::string::npos;
+				});
+
+				auto hasProperty = [&](const std::string& name) {
+					const auto propertyID = getPropertyFromString(name, data.targetFormType.get());
+					if (propertyID < 0) {
+						return false;
 					}
-				}
-
-				if (!line.connectionAnd.empty() && line.connectionAnd != "none") {
-					connectionAnd = true;
-				}
-
-
-
-				if (!line.stringContainsAnd.empty()) {
-					//logger::info("keywords not empty");
-					for (const auto& keywordstring : line.stringContainsAnd) {
-						std::string searchString = keywordstring;
-						std::string fullname = curobj->fullName.c_str();
-						std::transform(searchString.begin(), searchString.end(), searchString.begin(), [](unsigned char c) { return std::tolower(c); });
-						std::transform(fullname.begin(), fullname.end(), fullname.begin(), [](unsigned char c) { return std::tolower(c); });
-						if (fullname.find(searchString) != std::string::npos) {
-							stringAnd = true;
-							//logger::info("OMOD found.");
-						} else {
-							stringAnd = false;
-							break;
+					for (std::uint32_t index = 0; index < data.propertyModCount; ++index) {
+						if (data.propertyMods[index].target == static_cast<std::uint32_t>(propertyID)) {
+							return true;
 						}
 					}
-				} else {
-					//logger::debug(FMT_STRING("KeywordAnd is empty, we pass true."));
-					stringAnd = true;
-				}
-				if (!line.stringContainsOr.empty()) {
-					//logger::info("keywords not empty");
-					for (const auto& keywordstring : line.stringContainsOr) {
-						std::string searchString = keywordstring;
-						std::string fullname = curobj->fullName.c_str();
-						std::transform(searchString.begin(), searchString.end(), searchString.begin(), [](unsigned char c) { return std::tolower(c); });
-						std::transform(fullname.begin(), fullname.end(), fullname.begin(), [](unsigned char c) { return std::tolower(c); });
-						if (fullname.find(searchString) != std::string::npos) {
-							stringOr = true;
-							break;
-						}
-					}
-				} else {
-					//logger::debug(FMT_STRING("KeywordOr is empty, we pass true."));
-					stringOr = true;
-				}
+					return false;
+				};
+				const bool propertyAndMatch = line.PropertyAnd.empty() || std::all_of(line.PropertyAnd.begin(), line.PropertyAnd.end(), hasProperty);
+				const bool propertyOrMatch = line.PropertyOr.empty() || std::any_of(line.PropertyOr.begin(), line.PropertyOr.end(), hasProperty);
 
-				if ((!line.stringContainsAnd.empty() || !line.stringContainsOr.empty()) && stringAnd && stringOr) {
-					//logger::debug(FMT_STRING("Found true. {:08X} {}"), curobj->formID, curobj->fullName);
-					found = true;
-				} 
-
-				if (!line.PropertyAnd.empty()) {
-					//logger::info("PropertyAnd not empty");
-					for (const auto& keywordstring : line.PropertyAnd) {
-
-						int propertyId = getPropertyFromString(keywordstring);
-						RE::BGSMod::Attachment::Mod::Data data;
-						curobj->GetData(data);
-						bool hasProperty = false;
-						for (uint32_t j = 0; j < data.propertyModCount; j++) {
-							auto& mod = data.propertyMods[j];
-							if (propertyId == mod.target) {
-								hasProperty = true;
+				bool formsMatch = line.FormAnd.empty();
+				if (!line.FormAnd.empty() && referencedFormsValid && referencedForms.size() == line.FormAnd.size()) {
+					formsMatch = std::all_of(referencedForms.begin(), referencedForms.end(), [&](std::uint32_t formID) {
+						for (std::uint32_t index = 0; index < data.propertyModCount; ++index) {
+							const auto& property = data.propertyMods[index];
+							if (property.type == RE::BGSMod::Property::TYPE::kForm && property.data.form && property.data.form->formID == formID) {
+								return true;
+							}
+							if (property.type == RE::BGSMod::Property::TYPE::kPair && property.data.fv.formID == formID) {
+								return true;
 							}
 						}
-						if (hasProperty) {
-							propertyAnd = true;
-							//logger::debug(FMT_STRING("omod propertyAnd {:08X} {} true"), curobj->formID, curobj->fullName);
-						} else {
-							propertyAnd = false;
-							break;
-						}
-
-					}
-				} else {
-					//logger::debug(FMT_STRING("KeywordAnd is empty, we pass true."));
-					propertyAnd = true;
+						return false;
+					});
 				}
 
-				if (!line.PropertyOr.empty()) {
-					//logger::info("keywords not empty");
-					for (const auto& keywordstring : line.PropertyOr) {
-
-						int propertyId = getPropertyFromString(keywordstring);
-						RE::BGSMod::Attachment::Mod::Data data;
-						curobj->GetData(data);
-						bool hasProperty = false;
-						for (uint32_t j = 0; j < data.propertyModCount; j++) {
-							auto& mod = data.propertyMods[j];
-							if (propertyId == mod.target) {
-								hasProperty = true;
-							}
-						}
-						if (hasProperty) {
-							propertyOr = true;
-							//logger::debug(FMT_STRING("omod propertyOr {:08X} {} true"), curobj->formID, curobj->fullName);
-							break;
-						}
-
-					}
-				} else {
-					//logger::debug(FMT_STRING("KeywordOr is empty, we pass true."));
-					propertyOr = true;
-				}
-
-				if ((!line.PropertyAnd.empty() || !line.PropertyOr.empty()) && propertyAnd && propertyOr) {
-					//logger::debug(FMT_STRING("Found a matching weapon by keywords. {:08X} {}"), curobj->formID, curobj->fullName);
-					found = true;
-				} 
-
+				bool attachPointMatch = line.attachPointKeywordsFilter.empty();
 				if (!line.attachPointKeywordsFilter.empty()) {
-					for (const auto& keywordstring : line.attachPointKeywordsFilter) {
-						RE::TESForm* currentform = nullptr;
+					const auto* attachPoint = BGSKeywordGetTypedKeywordByIndex(RE::KeywordType::kAttachPoint, curobj->attachPoint.keywordIndex);
+					attachPointMatch = attachPoint && std::find(attachPoints.begin(), attachPoints.end(), attachPoint->formID) != attachPoints.end();
+				}
 
-						std::string string_form = keywordstring;
-						currentform = GetFormFromIdentifier(string_form);
-						auto attachPointKeyword = BGSKeywordGetTypedKeywordByIndex(RE::KeywordType::kAttachPoint, curobj->attachPoint.keywordIndex);
-						if (currentform && attachPointKeyword && currentform->formID == attachPointKeyword->formID) {
-							//logger::debug("attachPointKeywordsFilter IDxxx {:08X}", attachPointKeyword->formID);
-							found = true;
-							attachPoint = true;
-							break;
-						}
+				std::size_t suppliedFilters = 0;
+				std::size_t matchedFilters = 0;
+				auto addFilterResult = [&](bool supplied, bool matched) {
+					if (supplied) {
+						++suppliedFilters;
+						matchedFilters += matched ? 1u : 0u;
 					}
+				};
+				addFilterResult(!line.objects.empty(), directMatch);
+				addFilterResult(!line.stringContainsAnd.empty(), nameAndMatch);
+				addFilterResult(!line.stringContainsOr.empty(), nameOrMatch);
+				addFilterResult(!line.PropertyAnd.empty(), propertyAndMatch);
+				addFilterResult(!line.PropertyOr.empty(), propertyOrMatch);
+				addFilterResult(!line.FormAnd.empty(), formsMatch);
+				addFilterResult(!line.attachPointKeywordsFilter.empty(), attachPointMatch);
+
+				const bool foundByPositiveFilters = suppliedFilters == 0 ||
+					(connectWithAnd ? matchedFilters == suppliedFilters : matchedFilters > 0);
+				bool found = foundByPositiveFilters;
+
+				if (found && !nameExcludeValues.empty()) {
+					found = std::none_of(nameExcludeValues.begin(), nameExcludeValues.end(), [&](const auto& value) {
+						return lowercaseFullName.find(value) != std::string::npos;
+					});
+				}
+				if (found && !line.PropertyExclude.empty()) {
+					found = std::none_of(line.PropertyExclude.begin(), line.PropertyExclude.end(), hasProperty);
 				}
 
-				if (connectionAnd ) {
-
-					if ((!line.stringContainsAnd.empty() || !line.stringContainsOr.empty())) {
-						//string = true;
-						if (found && stringAnd && stringOr) {
-							found = true;
-						} else {
-							found = false;
-						}
-					} 
-
-					if ((!line.PropertyAnd.empty() || !line.PropertyOr.empty())) {
-						//propertyString = true;
-						if (found && propertyAnd && propertyOr) {
-							found = true;
-						} else {
-							found = false;
-						}
-					} 
-
-					if (!line.attachPointKeywordsFilter.empty()) {
-						logger::debug("attachPointKeywordsFilter IDyyy");
-						if (found && attachPoint) {
-							found = true;
-						} else {
-							found = false;
-						}
-					}
-				}
-					
-
-				if (line.objects.empty() && line.stringContainsAnd.empty() && line.stringContainsOr.empty() && line.PropertyAnd.empty() && line.PropertyOr.empty() && line.attachPointKeywordsFilter.empty()) {
-					found = true;
-				}
-
-				if (!line.stringContainsExclude.empty()) {
-					for (const auto& keywordstring : line.stringContainsExclude) {
-						std::string searchString = keywordstring;
-						std::string fullname = curobj->fullName.c_str();
-						std::transform(searchString.begin(), searchString.end(), searchString.begin(), [](unsigned char c) { return std::tolower(c); });
-						std::transform(fullname.begin(), fullname.end(), fullname.begin(), [](unsigned char c) { return std::tolower(c); });
-
-						if (fullname.find(searchString) != std::string::npos) {
-							found = false;
-							//logger::debug(FMT_STRING("omod propertyExcluded {:08X} {}"), curobj->formID, curobj->fullName);
-							break;
-						}
-					}
-				}
-
-				if (!line.PropertyExclude.empty()) {
-					for (const auto& keywordstring : line.PropertyExclude) {
-						int propertyId = getPropertyFromString(keywordstring);
-						RE::BGSMod::Attachment::Mod::Data data;
-						curobj->GetData(data);
-						bool hasProperty = false;
-						for (uint32_t j = 0; j < data.propertyModCount; j++) {
-							auto& mod = data.propertyMods[j];
-							if (propertyId == mod.target) {
-								hasProperty = true;
-							}
-						}
-						if (hasProperty) {
-							found = false;
-							//logger::debug(FMT_STRING("omod propertyExcluded {:08X} {}"), curobj->formID, curobj->fullName);
-							break;
-						} 
-					}
-				}
-
-				//if (found && !line.properties.empty()) {
-				//	for (uint32_t i = 0; i < line.properties.size(); i++) {
-				//		int propertyId = getPropertyFromString(line.properties[i]);
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			switch (type) {
-				//			case RE::BGSMod::Property::TYPE::kInt:
-				//				//logger::debug(FMT_STRING("OMOD Data Type {} kInt {} {} | {} {}"), std::to_string(mod.target), mod.data.mm.min.i, mod.data.mm.max.i, mod.data.mm.min.f, mod.data.mm.max.f);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kFloat:
-				//				if (propertyId == mod.target) {
-				//					mod.data.mm.min.f = std::stof(line.propertiesValues[i]);
-				//					logger::debug(FMT_STRING("omod {:08X} {} Value set {} to {}"), curobj->formID, curobj->fullName, line.properties[i], mod.data.mm.min.f);
-				//				}
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kBool:
-				//				//logger::debug(FMT_STRING("OMOD Data Editor ID {:08X}"), mod.data.fv.formID);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kString:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kForm:
-				//				//if (mod.data.mm.min.i != 0)
-				//				//	logger::debug(FMT_STRING("OMOD Data Type {} kForm Editor ID {:08X}"), std::to_string(mod.target), mod.data.form->formID);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kEnum:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kPair:
-				//				//logger::debug(FMT_STRING("OMOD Data Type {} kPair {:08X} value {} fmin {} fmax {} imin {} imax {} "), std::to_string(mod.target), mod.data.fv.formID, mod.data.fv.value, mod.data.mm.min.f, mod.data.mm.max.f, mod.data.mm.min.i, mod.data.mm.max.i);
-				//				//mod.data.fv.value = 20.0;
-				//				//logger::debug(FMT_STRING("OMOD Data Type {} kPair {:08X} value {} fmin {} fmax {} imin {} imax {} "), std::to_string(mod.target), mod.data.fv.formID, mod.data.fv.value, mod.data.mm.min.f, mod.data.mm.max.f, mod.data.mm.min.i, mod.data.mm.max.i);
-				//				break;
-				//			}
-				//		}
-				//	}
-				//}
-
-				//if (found && !line.propertiesVP.empty()) {
-				//	for (uint32_t i = 0; i < line.propertiesVP.size(); i++) {
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			switch (type) {
-				//			case RE::BGSMod::Property::TYPE::kInt:
-				//				//logger::debug(FMT_STRING("OMOD Data Type {} kInt {} {} | {} {}"), std::to_string(mod.target), mod.data.mm.min.i, mod.data.mm.max.i, mod.data.mm.min.f, mod.data.mm.max.f);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kFloat:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kBool:
-				//				//logger::debug(FMT_STRING("OMOD Data Editor ID {:08X}"), mod.data.fv.formID);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kString:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kForm:
-				//				//if (mod.data.mm.min.i != 0)
-				//				//	logger::debug(FMT_STRING("OMOD Data Type {} kForm Editor ID {:08X}"), std::to_string(mod.target), mod.data.form->formID);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kEnum:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kPair:
-				//				RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesVP[i]);
-				//				if (currentform && mod.data.fv.formID == currentform->formID) {
-				//					mod.data.fv.value = std::stof(line.propertiesVPValues[i]);
-				//					logger::debug(FMT_STRING("omod {:08X} {} Value set {:08X} to {}"), curobj->formID, curobj->fullName, currentform->formID, mod.data.fv.value);
-				//				}
-
-				//				break;
-				//			}
-				//		}
-				//	}
-				//}
-
-				//if (found && !line.propertiesForm.empty()) {
-				//	for (uint32_t i = 0; i < line.propertiesForm.size(); i++) {
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			switch (type) {
-				//			case RE::BGSMod::Property::TYPE::kInt:
-				//				//logger::debug(FMT_STRING("OMOD Data Type {} kInt {} {} | {} {}"), std::to_string(mod.target), mod.data.mm.min.i, mod.data.mm.max.i, mod.data.mm.min.f, mod.data.mm.max.f);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kFloat:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kBool:
-				//				//logger::debug(FMT_STRING("OMOD Data Editor ID {:08X}"), mod.data.fv.formID);
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kString:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kForm:
-				//				if (mod.data.mm.min.i != 0) {
-				//					RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesForm[i]);
-				//					RE::TESForm* currentformValue = GetFormFromIdentifier(line.propertiesFormValues[i]);
-				//					if (currentform && currentformValue && mod.data.form->formID == currentform->formID) {
-				//						mod.data.form = currentformValue;
-				//						logger::debug(FMT_STRING("omod {:08X} {} changed form {:08X} to {:08X}"), curobj->formID, curobj->fullName, currentform->formID, currentformValue->formID);
-				//					}
-				//				}
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kEnum:
-				//				break;
-				//			case RE::BGSMod::Property::TYPE::kPair:
-
-
-				//				break;
-				//			}
-				//		}
-				//	}
-				//}
-
-				//if (found && !line.propertiesToRemoveForm.empty()) {
-				//	for (uint32_t i = 0; i < line.propertiesToRemoveForm.size(); i++) {
-				//		int propertyId = getPropertyFromString(line.propertiesToRemoveForm[i]);
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			switch (type) {
-				//			case RE::BGSMod::Property::TYPE::kForm:
-				//				if (mod.data.mm.min.i != 0) {
-				//					RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesToRemoveForm[i]);
-				//					if (currentform && mod.data.form->formID == currentform->formID) {
-				//						mod.RemoveData();
-				//						logger::debug(FMT_STRING("omod {:08X} {} Removed form {:08X}"), curobj->formID, curobj->fullName, currentform->formID);
-				//					}
-				//				}
-				//				break;
-				//			}
-				//		}
-				//	}
-				//}
-
-				//if (found && !line.propertiesToRemovePV.empty()) {
-				//	for (uint32_t i = 0; i < line.propertiesToRemovePV.size(); i++) {
-				//		int propertyId = getPropertyFromString(line.propertiesToRemovePV[i]);
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			switch (type) {
-				//			case RE::BGSMod::Property::TYPE::kPair:
-				//				RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesToRemovePV[i]);
-				//					if (currentform && mod.data.fv.formID == currentform->formID) {
-				//						mod.RemoveData();
-				//						logger::debug(FMT_STRING("omod {:08X} {} Removed value pair {:08X}"), curobj->formID, curobj->fullName, currentform->formID);
-				//					}
-				//				break;
-				//			}
-				//		}
-				//	}
-				//}
-				//if (found && !line.propertiesToRemove.empty()) {
-				//	for (uint32_t i = 0; i < line.propertiesToRemove.size(); i++) {
-				//		int propertyId = getPropertyFromString(line.propertiesToRemove[i]);
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//			auto& mod = data.propertyMods[j];
-				//			auto type = mod.type;
-
-				//			if (propertyId == mod.target) {
-				//				logger::debug(FMT_STRING("omod {:08X} {} removed property {}"), curobj->formID, curobj->fullName, line.propertiesToRemove[i]);
-				//				mod.RemoveData();
-				//			}
-				//		}
-				//	}
-				//}
-
-
-				//if (found && !line.fullName.empty() && line.fullName != "none") {
-				//	try {
-				//		logger::debug(FMT_STRING("omod formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
-				//		curobj->fullName = line.fullName;
-				//	} catch (const std::invalid_argument& e) {
-				//	}
-				//}
-
-
-
-				//if (found) {
-				//	for (uint32_t i = 0; i < line.propertiesToRemove.size(); i++) {
-				//		//int propertyId = getPropertyFromString(line.propertiesToRemove[i]);
-				//		RE::BGSMod::Attachment::Mod::Data data;
-				//		curobj->GetData(data);
-
-				//		RE::BGSMod::Property::Mod test;
-				//		test.data.
-
-				//		logger::debug(FMT_STRING("omod {:08X} {} removed property {}"), curobj->formID, curobj->fullName, line.propertiesToRemove[i]);
-				//		//for (uint32_t j = 0; j < data.propertyModCount; j++) {
-				//		//	auto& mod = data.propertyMods[j];
-				//		//	auto type = mod.type;
-				//		//	//if (propertyId == mod.target) {
-				//		//		//mod.RemoveData();
-				//		//	//}
-				//		//}
-				//	}
-				//}
 				if (found) {
 					patch(line, curobj);
 				}
-
-
-
 			}
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
 		std::string extension = ".ini";
@@ -1082,9 +713,8 @@ namespace OMOD
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -1104,7 +734,10 @@ namespace OMOD
 								std::list<line_content> tokens;
 								infile.open(fullPath);
 								while (std::getline(infile, line)) {
-									if (line.empty() || line[0] == skipChar) {
+									if (line.empty()) {
+										continue;
+									}
+									if (line[0] == skipChar) {
 										continue;
 									}
 
@@ -1122,20 +755,39 @@ namespace OMOD
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
-	void* patch(OMOD::line_content line, RE::BGSMod::Attachment::Mod* curobj)
+	void patch(const OMOD::line_content& line, RE::BGSMod::Attachment::Mod* curobj)
 	{
 		if (!curobj || ShouldSkipPatch("objectmodification", curobj)) {
-			return nullptr;
+			return;
 		}
+
+		RE::BGSMod::Attachment::Mod::Data targetData;
+		if (!ReadData(curobj, targetData)) {
+			return;
+		}
+		const auto targetFormType = targetData.targetFormType.get();
 
 		if (!line.properties.empty()) {
 			for (uint32_t i = 0; i < line.properties.size(); i++) {
-				int propertyId = getPropertyFromString(line.properties[i]);
+				if (i >= line.propertiesValues.size()) {
+					logger::warn(FMT_STRING("OMOD {:08X}: missing value for property '{}'"), curobj->formID, line.properties[i]);
+					continue;
+				}
+				int propertyId = getPropertyFromString(line.properties[i], targetFormType);
 				RE::BGSMod::Attachment::Mod::Data data;
-				curobj->GetData(data);
+				if (!ReadData(curobj, data)) {
+					continue;
+				}
+				if (data.propertyModCount == 0 || !data.propertyMods) {
+					continue;
+				}
+				if (data.propertyModCount > 0 && !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
+					continue;
+				}
 
 				for (uint32_t j = 0; j < data.propertyModCount; j++) {
 					auto& mod = data.propertyMods[j];
@@ -1146,9 +798,13 @@ namespace OMOD
 						//logger::debug(FMT_STRING("OMOD Data Type {} kInt {} {} | {} {}"), std::to_string(mod.target), mod.data.mm.min.i, mod.data.mm.max.i, mod.data.mm.min.f, mod.data.mm.max.f);
 						break;
 					case RE::BGSMod::Property::TYPE::kFloat:
-						if (propertyId == mod.target) {
-							mod.data.mm.min.f = std::stof(line.propertiesValues[i]);
-							logger::debug(FMT_STRING("omod {:08X} {} Value set {} to {}"), curobj->formID, curobj->fullName, line.properties[i], mod.data.mm.min.f);
+						if (propertyId == static_cast<int>(mod.target)) {
+							try {
+								mod.data.mm.min.f = std::stof(line.propertiesValues[i]);
+								logger::debug(FMT_STRING("omod {:08X} {} Value set {} to {}"), curobj->formID, curobj->fullName, line.properties[i], mod.data.mm.min.f);
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("OMOD {:08X}: invalid value '{}' for property '{}': {}"), curobj->formID, line.propertiesValues[i], line.properties[i], e.what());
+							}
 						}
 						break;
 					case RE::BGSMod::Property::TYPE::kBool:
@@ -1174,8 +830,22 @@ namespace OMOD
 
 		if (!line.propertiesVP.empty()) {
 			for (uint32_t i = 0; i < line.propertiesVP.size(); i++) {
+				if (i >= line.propertiesVPValues.size()) {
+					logger::warn(FMT_STRING("OMOD {:08X}: missing pair value for '{}'"), curobj->formID, line.propertiesVP[i]);
+					continue;
+				}
 				RE::BGSMod::Attachment::Mod::Data data;
-				curobj->GetData(data);
+				if (!ReadData(curobj, data)) {
+					continue;
+				}
+				if (i >= line.propertiesVPValues.size() || data.propertyModCount == 0 || !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: invalid changeOModPropertiesVP entry or missing property data"), curobj->formID);
+					continue;
+				}
+				if (data.propertyModCount > 0 && !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
+					continue;
+				}
 
 				for (uint32_t j = 0; j < data.propertyModCount; j++) {
 					auto& mod = data.propertyMods[j];
@@ -1201,8 +871,12 @@ namespace OMOD
 					case RE::BGSMod::Property::TYPE::kPair:
 						RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesVP[i]);
 						if (currentform && mod.data.fv.formID == currentform->formID) {
-							mod.data.fv.value = std::stof(line.propertiesVPValues[i]);
-							logger::debug(FMT_STRING("omod {:08X} {} Value set {:08X} to {}"), curobj->formID, curobj->fullName, currentform->formID, mod.data.fv.value);
+							try {
+								mod.data.fv.value = std::stof(line.propertiesVPValues[i]);
+								logger::debug(FMT_STRING("omod {:08X} {} Value set {:08X} to {}"), curobj->formID, curobj->fullName, currentform->formID, mod.data.fv.value);
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("OMOD {:08X}: invalid pair value '{}' for '{}': {}"), curobj->formID, line.propertiesVPValues[i], line.propertiesVP[i], e.what());
+							}
 						}
 
 						break;
@@ -1213,22 +887,24 @@ namespace OMOD
 
 		if (!line.propertiesForm.empty()) {
 			for (uint32_t i = 0; i < line.propertiesForm.size(); i++) {
-				RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesForm[i]);
-				RE::TESForm* currentformValue = GetFormFromIdentifier(line.propertiesFormValues[i]);
-				if (!currentform || !currentformValue) {
-					logger::warn(FMT_STRING("omod {:08X} {} could not resolve form replacement {} -> {}"),
-						curobj->formID,
-						curobj->fullName,
-						line.propertiesForm[i],
-						line.propertiesFormValues[i]);
-					PATCH::RecordWarning("objectmodification", "could not resolve form replacement " + line.propertiesForm[i] + " -> " + line.propertiesFormValues[i]);
+				if (i >= line.propertiesFormValues.size()) {
+					logger::warn(FMT_STRING("OMOD {:08X}: missing replacement form for '{}'"), curobj->formID, line.propertiesForm[i]);
+					continue;
+				}
+				RE::BGSMod::Attachment::Mod::Data data;
+				if (!ReadData(curobj, data)) {
+					continue;
+				}
+				if (i >= line.propertiesFormValues.size() || data.propertyModCount == 0 || !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: invalid changeOModPropertiesForm entry or missing property data"), curobj->formID);
+					continue;
+				}
+				if (data.propertyModCount > 0 && !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
 					continue;
 				}
 
-				RE::BGSMod::Attachment::Mod::Data data;
-				curobj->GetData(data);
 				bool replaced = false;
-
 				for (uint32_t j = 0; j < data.propertyModCount; j++) {
 					auto& mod = data.propertyMods[j];
 					auto type = mod.type;
@@ -1244,13 +920,20 @@ namespace OMOD
 						break;
 					case RE::BGSMod::Property::TYPE::kString:
 						break;
-					case RE::BGSMod::Property::TYPE::kForm:
-						if (mod.data.form && mod.data.form->formID == currentform->formID) {
-							mod.data.form = currentformValue;
-							replaced = true;
-							logger::debug(FMT_STRING("omod {:08X} {} changed form {:08X} to {:08X}"), curobj->formID, curobj->fullName, currentform->formID, currentformValue->formID);
+					case RE::BGSMod::Property::TYPE::kForm: {
+						if (i < line.propertiesForm.size()) {
+							RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesForm[i]);
+							RE::TESForm* currentformValue = GetFormFromIdentifier(line.propertiesFormValues[i]);
+							// Compare the stored pointer directly. Never dereference it here:
+							// malformed native OMOD data can contain a small integer (e.g. 0x3C).
+							if (currentform && currentformValue && mod.data.form == currentform) {
+								mod.data.form = currentformValue;
+								replaced = true;
+								logger::debug(FMT_STRING("omod {:08X} {} changed form {:08X} to {:08X}"), curobj->formID, curobj->fullName, currentform->formID, currentformValue->formID);
+							}
 						}
 						break;
+					}
 					case RE::BGSMod::Property::TYPE::kEnum:
 						break;
 					case RE::BGSMod::Property::TYPE::kPair:
@@ -1267,215 +950,274 @@ namespace OMOD
 			}
 		}
 
-		if (!line.propertiesToRemoveForm.empty()) {
-			for (uint32_t i = 0; i < line.propertiesToRemoveForm.size(); i++) {
-				RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesToRemoveForm[i]);
-				if (!currentform) {
-					continue;
-				}
-
-				const auto removed = remove_omod_property_entries(curobj, [currentform](const RE::BGSMod::Property::Mod& mod) {
-					return mod.type == RE::BGSMod::Property::TYPE::kForm &&
-						mod.data.form &&
-						mod.data.form->formID == currentform->formID;
-				});
-				if (removed > 0) {
-					logger::debug(FMT_STRING("omod {:08X} {} removed {} form property entries {:08X}"), curobj->formID, curobj->fullName, removed, currentform->formID);
-				}
+		if (!line.propertiesToRemoveForm.empty() || !line.propertiesToRemovePV.empty() || !line.propertiesToRemove.empty()) {
+			RE::BGSMod::Attachment::Mod::Data data{};
+			if (!ReadData(curobj, data)) {
+				return;
 			}
-		}
+			if (data.propertyModCount > 0 && !data.propertyMods) {
+				logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
+			} else if (data.propertyMods && data.propertyModCount > 0) {
+				std::unordered_set<const RE::TESForm*> formsToRemove;
+				std::unordered_set<std::uint32_t> pairFormsToRemove;
+				std::unordered_set<std::uint32_t> propertyIDsToRemove;
 
-		if (!line.propertiesToRemovePV.empty()) {
-			for (uint32_t i = 0; i < line.propertiesToRemovePV.size(); i++) {
-				RE::TESForm* currentform = GetFormFromIdentifier(line.propertiesToRemovePV[i]);
-				if (!currentform) {
-					continue;
+				for (const auto& identifier : line.propertiesToRemoveForm) {
+					if (const auto* form = GetFormFromIdentifier(identifier)) {
+						formsToRemove.insert(form);
+					} else {
+						logger::warn(FMT_STRING("OMOD {:08X}: remove form not found '{}'"), curobj->formID, identifier);
+					}
 				}
-
-				const auto removed = remove_omod_property_entries(curobj, [currentform](const RE::BGSMod::Property::Mod& mod) {
-					return mod.type == RE::BGSMod::Property::TYPE::kPair &&
-						mod.data.fv.formID == currentform->formID;
-				});
-				if (removed > 0) {
-					logger::debug(FMT_STRING("omod {:08X} {} removed {} value-pair property entries {:08X}"), curobj->formID, curobj->fullName, removed, currentform->formID);
+				for (const auto& identifier : line.propertiesToRemovePV) {
+					if (const auto* form = GetFormFromIdentifier(identifier)) {
+						pairFormsToRemove.insert(form->formID);
+					} else {
+						logger::warn(FMT_STRING("OMOD {:08X}: remove pair form not found '{}'"), curobj->formID, identifier);
+					}
 				}
-			}
-		}
-		if (!line.propertiesToRemove.empty()) {
-			for (uint32_t i = 0; i < line.propertiesToRemove.size(); i++) {
-				const auto propertyId = getPropertyFromString(line.propertiesToRemove[i]);
-				if (propertyId == static_cast<std::uint32_t>(-1)) {
-					continue;
-				}
-
-				const auto removed = remove_omod_property_entries(curobj, [propertyId](const RE::BGSMod::Property::Mod& mod) {
-					return propertyId == mod.target;
-				});
-				if (removed > 0) {
-					logger::debug(FMT_STRING("omod {:08X} {} removed {} property entries {}"), curobj->formID, curobj->fullName, removed, line.propertiesToRemove[i]);
-				}
-			}
-		}
-
-		/* if (!line.propertiesToAdd.empty()) {
-			//RE::MemoryManager& mm = RE::MemoryManager::GetSingleton();
-			for (uint32_t i = 0; i < line.propertiesToAdd.size(); i++) {
-				int propertyId = getPropertyFromString(line.propertiesToAdd[i]);
-
-				RE::BGSMod::Attachment::Mod::Data data;
-				//RE::BGSMod::Attachment::Mod::Data data2;
-				curobj->GetData(data);
-				
-				RE::BGSMod::Property::Mod* newPropertyMods = new RE::BGSMod::Property::Mod[data.propertyModCount + 1];
-				//logger::debug(FMT_STRING("omod added {:08X} target {} "), curobj->formID, (int)data.propertyMods[data.propertyModCount-1].target);
-				if (data.propertyMods != nullptr) {
-					for (int i = 0; i < data.propertyModCount; i++) {
-						logger::debug(FMT_STRING("omod before adding {:08X} target {} max size {}"), curobj->formID, (int)data.propertyMods[i].target, data.propertyModCount);
-						newPropertyMods[i].type = data.propertyMods[i].type;
-						newPropertyMods[i].target = data.propertyMods[i].target;
-						newPropertyMods[i].step = data.propertyMods[i].step;
-						newPropertyMods[i].op = data.propertyMods[i].op;
-						newPropertyMods[i].data.form = data.propertyMods[i].data.form;
-						newPropertyMods[i].data.fv.formID = data.propertyMods[i].data.fv.formID;
-						newPropertyMods[i].data.fv.value = data.propertyMods[i].data.fv.value;
-						newPropertyMods[i].data.mm.min.f = data.propertyMods[i].data.mm.min.f;
-						newPropertyMods[i].data.mm.min.i = data.propertyMods[i].data.mm.min.i;
-						newPropertyMods[i].data.mm.max.f = data.propertyMods[i].data.mm.max.f;
-						newPropertyMods[i].data.mm.max.i = data.propertyMods[i].data.mm.max.i;
-						
-						if (data.propertyMods[i].target == 28) {
-							//if (data.propertyMods[i].data.form)
-							//	logger::debug(FMT_STRING("omod before adding {:08X} form {:08x}"), curobj->formID, data.propertyMods[i].data.form->formID);
-							if (data.propertyMods[i].data.form)
-								logger::debug(FMT_STRING("omod before adding {:08X} fv f {:08x}"), curobj->formID, data.propertyMods[i].data.fv.formID);
-							logger::debug(FMT_STRING("omod before adding {:08X} fv va {}"), curobj->formID, data.propertyMods[i].data.fv.value);
-							logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.f);
-							logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.i);
-							logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.propertyMods[i].data.mm.max.f);
-							logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.propertyMods[i].data.mm.max.i);
-
-							//logger::debug(FMT_STRING("omod before adding {:08X} a count {}"), curobj->formID, data.attachmentCount);
-							//logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.attachments[i].mod->formID);
-							//logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.attachments[i].index);
-
-							//if (!data.propertyMods[i].data.str.empty() )
-							//	logger::debug(FMT_STRING("omod before adding {:08X} target {}"), curobj->formID, data.propertyMods[i].data.str.c_str());
-							newPropertyMods[i].data.mm.min.f = 100.0f;
-							//logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.f);
-						}
+				for (const auto& name : line.propertiesToRemove) {
+					const auto propertyID = getPropertyFromString(name, targetFormType);
+					if (propertyID <= 0x7FF) {
+						propertyIDsToRemove.insert(propertyID);
+					} else {
+						logger::warn(FMT_STRING("OMOD {:08X}: unknown property '{}'"), curobj->formID, name);
 					}
 				}
 
-				//newPropertyMods[data.propertyModCount].type = RE::BGSMod::Property::TYPE::kFloat;
-				//newPropertyMods[data.propertyModCount].target = (uint32_t)28;
-				//newPropertyMods[data.propertyModCount].op = RE::BGSMod::Property::OP::kMul;
-				//newPropertyMods[data.propertyModCount].data.mm.min.f = 99.0;
-				//newPropertyMods[data.propertyModCount].data.mm.max.f = 99.0;
-				//newPropertyMods[data.propertyModCount].data.mm.min.i = 0;
-				//newPropertyMods[data.propertyModCount].data.mm.max.i = 0;
-				//newPropertyMods[data.propertyModCount].step = 0;
-				//newPropertyMods[data.propertyModCount].step = 0;
-				//data.propertyModCount++;
-				data.propertyMods = newPropertyMods;
+				auto shouldRemove = [&](const RE::BGSMod::Property::Mod& property) {
+					if (propertyIDsToRemove.contains(property.target)) {
+						return true;
+					}
+					if (property.type == RE::BGSMod::Property::TYPE::kForm && formsToRemove.contains(property.data.form)) {
+						return true;
+					}
+					return property.type == RE::BGSMod::Property::TYPE::kPair && pairFormsToRemove.contains(property.data.fv.formID);
+				};
 
-				for (int i = 0; i < data.propertyModCount; i++) {
-					logger::debug(FMT_STRING("omod after adding {:08X} target {} max size {} {}"), curobj->formID, (int)data.propertyMods[i].target, data.propertyModCount, data.propertyMods[i].data.mm.min.f);
+				std::uint32_t removedCount = 0;
+				for (std::uint32_t i = 0; i < data.propertyModCount; ++i) {
+					removedCount += shouldRemove(data.propertyMods[i]) ? 1u : 0u;
 				}
-				curobj->ClearData();
-				curobj->SetDataN(&data);
-				//RE::BGSMod::Attachment::Mod::Data data;
-				//curobj->GetData(data);
-				//RE::BGSMod::Property::Mod* newPropertyMods = new RE::BGSMod::Property::Mod[data.propertyModCount+1];
-				////logger::debug(FMT_STRING("omod added {:08X} target {} "), curobj->formID, (int)data.propertyMods[data.propertyModCount-1].target);
-				//if (data.propertyMods != nullptr) {
-				//	for (int i = 0; i < data.propertyModCount; i++) {
-				//		/*if (data.propertyMods[i].data.str.c_str()) {
-				//		logger::debug(FMT_STRING("omod added {:08X} target {} str {}"), curobj->formID, (int)data.propertyMods[i].target, data.propertyMods[i].data.str.c_str());
-				//		} else {
-				//		}*/
-				//		logger::debug(FMT_STRING("omod before adding {:08X} target {} max size{}"), curobj->formID, (int)data.propertyMods[i].target, data.propertyModCount);
-				//		newPropertyMods[i].type = data.propertyMods[i].type;
-				//		newPropertyMods[i].target = data.propertyMods[i].target;
-				//		newPropertyMods[i].step = data.propertyMods[i].step;
-				//		newPropertyMods[i].op = data.propertyMods[i].op;
-				//		newPropertyMods[i].data.form = data.propertyMods[i].data.form;
-				//		newPropertyMods[i].data.fv.formID = data.propertyMods[i].data.fv.formID;
-				//		newPropertyMods[i].data.fv.value = data.propertyMods[i].data.fv.value;
-				//		newPropertyMods[i].data.mm.min.f = data.propertyMods[i].data.mm.min.f;
-				//		newPropertyMods[i].data.mm.min.i = data.propertyMods[i].data.mm.min.i;
-				//		newPropertyMods[i].data.mm.max.f = data.propertyMods[i].data.mm.max.f;
-				//		newPropertyMods[i].data.mm.max.i = data.propertyMods[i].data.mm.max.i;
-				//		
-				//		if (data.propertyMods[i].target == 28) {
-				//			//if (data.propertyMods[i].data.form)
-				//			//	logger::debug(FMT_STRING("omod before adding {:08X} form {:08x}"), curobj->formID, data.propertyMods[i].data.form->formID);
-				//			if (data.propertyMods[i].data.form)
-				//				logger::debug(FMT_STRING("omod before adding {:08X} fv f {:08x}"), curobj->formID, data.propertyMods[i].data.fv.formID);
-				//			logger::debug(FMT_STRING("omod before adding {:08X} fv va {}"), curobj->formID, data.propertyMods[i].data.fv.value);
-				//			logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.f);
-				//			logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.i);
-				//			logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.propertyMods[i].data.mm.max.f);
-				//			logger::debug(FMT_STRING("omod before adding {:08X} data.mm.max {}"), curobj->formID, data.propertyMods[i].data.mm.max.i);
-				//			//if (!data.propertyMods[i].data.str.empty() )
-				//			//	logger::debug(FMT_STRING("omod before adding {:08X} target {}"), curobj->formID, data.propertyMods[i].data.str.c_str());
-				//			newPropertyMods[i].data.mm.min.f = 100;
-				//			logger::debug(FMT_STRING("omod before adding {:08X} data.mm.min {}"), curobj->formID, data.propertyMods[i].data.mm.min.f);
-				//		}
 
-				//	}
-				//}
+				if (removedCount > 0) {
+					const auto attachmentCount = data.attachments ? data.attachmentCount : 0u;
+					std::unique_ptr<RE::BGSMod::Attachment::Instance[]> rebuiltAttachments;
+					if (attachmentCount > 0) {
+						rebuiltAttachments = std::make_unique<RE::BGSMod::Attachment::Instance[]>(attachmentCount);
+						std::memcpy(rebuiltAttachments.get(), data.attachments, attachmentCount * sizeof(RE::BGSMod::Attachment::Instance));
+					}
 
-				//newPropertyMods[data.propertyModCount].type = RE::BGSMod::Property::TYPE::kFloat;
-				//newPropertyMods[data.propertyModCount].target = (uint32_t)28;
-				//newPropertyMods[data.propertyModCount].op = RE::BGSMod::Property::OP::kAdd;
-				//newPropertyMods[data.propertyModCount].data.mm.min.f = 99.0;
-				//newPropertyMods[data.propertyModCount].data.mm.max.f = 99.0;
-				//newPropertyMods[data.propertyModCount].data.mm.min.i = 0;
-				//newPropertyMods[data.propertyModCount].data.mm.max.i = 0;
-				//newPropertyMods[data.propertyModCount].step = 0;
+					const auto remainingCount = data.propertyModCount - removedCount;
+					std::unique_ptr<RE::BGSMod::Property::Mod[]> rebuiltProperties;
+					if (remainingCount > 0) {
+						rebuiltProperties = std::make_unique<RE::BGSMod::Property::Mod[]>(remainingCount);
+						std::uint32_t destination = 0;
+						for (std::uint32_t i = 0; i < data.propertyModCount; ++i) {
+							if (!shouldRemove(data.propertyMods[i])) {
+								std::memcpy(std::addressof(rebuiltProperties[destination++]), std::addressof(data.propertyMods[i]), sizeof(RE::BGSMod::Property::Mod));
+							}
+						}
+					}
 
-				//data.propertyMods = newPropertyMods;
-				////data.propertyModCount++;
-				//if (data.propertyMods != nullptr) {
-				//	for (int i = 0; i < data.propertyModCount; i++) {
-				//		logger::debug(FMT_STRING("omod after adding {:08X} target {} maxsize {}"), curobj->formID, (int)data.propertyMods[i].target, data.propertyModCount);
-				//	}
-				//}
-				//curobj->SetData(data);
-				//if (data.propertyMods != nullptr) {
-				//	std::memcpy(newPropertyMods, data.propertyMods, data.propertyModCount * sizeof(RE::BGSMod::Property::Mod));
-				//}
-				//newPropertyMods[data.propertyModCount-1].type = RE::BGSMod::Property::TYPE::kFloat;
-				//newPropertyMods[data.propertyModCount-1].target = 28;
-				//newPropertyMods[data.propertyModCount-1].op = RE::BGSMod::Property::OP::kAdd;
-				//newPropertyMods[data.propertyModCount-1].data.mm.min.f = 99.0;
-				//newPropertyMods[data.propertyModCount-1].step = 0;
-	//		}
-		//}
+					data.attachments = rebuiltAttachments.get();
+					data.attachmentCount = attachmentCount;
+					data.propertyMods = rebuiltProperties.get();
+					data.propertyModCount = remainingCount;
+					if (EngineAdapters::ReplaceOmodData(curobj, data)) {
+						logger::debug(FMT_STRING("OMOD {:08X}: removed {} property definition(s)"), curobj->formID, removedCount);
+					} else {
+						logger::critical(FMT_STRING("OMOD {:08X}: property removal rejected; original buffer preserved"), curobj->formID);
+					}
+				}
+			}
+		}
+
+		if (!line.propertiesToAdd.empty()) {
+			RE::BGSMod::Attachment::Mod::Data data;
+			if (!ReadData(curobj, data)) {
+				return;
+			}
+			const auto existingCount = data.propertyMods ? data.propertyModCount : 0u;
+			const auto capacity = existingCount + static_cast<std::uint32_t>(line.propertiesToAdd.size());
+			const auto attachmentCount = data.attachments ? data.attachmentCount : 0u;
+			std::unique_ptr<RE::BGSMod::Attachment::Instance[]> rebuiltAttachments;
+			if (attachmentCount > 0) {
+				rebuiltAttachments = std::make_unique<RE::BGSMod::Attachment::Instance[]>(attachmentCount);
+				std::memcpy(rebuiltAttachments.get(), data.attachments, attachmentCount * sizeof(RE::BGSMod::Attachment::Instance));
+			}
+			std::unique_ptr<RE::BGSMod::Property::Mod[]> rebuilt;
+			std::uint32_t rebuiltCount = existingCount;
+			if (capacity > 0) {
+				rebuilt = std::make_unique<RE::BGSMod::Property::Mod[]>(capacity);
+			}
+			if (data.propertyMods && data.propertyModCount > 0) {
+				for (std::uint32_t i = 0; i < data.propertyModCount; ++i) {
+					std::memcpy(std::addressof(rebuilt[i]), std::addressof(data.propertyMods[i]), sizeof(RE::BGSMod::Property::Mod));
+				}
+			}
+
+			bool changed = false;
+			std::size_t addedCount = 0;
+			for (const auto& definition : line.propertiesToAdd) {
+				std::vector<std::string> parts;
+				std::stringstream parser(definition);
+				std::string part;
+				while (std::getline(parser, part, '~')) {
+					parts.push_back(trim(part));
+				}
+				if (parts.size() < 4) {
+					logger::warn(FMT_STRING("OMOD {:08X}: invalid oModPropertiesToAdd '{}'; expected property~type~operation~value"), curobj->formID, definition);
+					continue;
+				}
+
+				const int propertyId = getPropertyFromString(parts[0], targetFormType);
+				if (propertyId < 0 || propertyId > 0x7FF) {
+					logger::warn(FMT_STRING("OMOD {:08X}: unknown property '{}'"), curobj->formID, parts[0]);
+					continue;
+				}
+
+				if (!rebuilt || rebuiltCount >= capacity) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property buffer capacity exceeded"), curobj->formID);
+					break;
+				}
+				RE::BGSMod::Property::Mod& property = rebuilt[rebuiltCount];
+				property.data.form = nullptr;
+				property.target = static_cast<std::uint32_t>(propertyId);
+				property.op = RE::BGSMod::Property::OP::kSet;
+				property.type = RE::BGSMod::Property::TYPE::kInt;
+				property.step = 0;
+				std::string type = toLowerCase(parts[1]);
+				std::string operation = toLowerCase(parts[2]);
+				if (operation != "set" && operation != "add" && operation != "mul" && operation != "mult" && operation != "multiply" && operation != "rem" && operation != "remove") {
+					logger::warn(FMT_STRING("OMOD {:08X}: unknown property operation '{}'"), curobj->formID, parts[2]);
+					continue;
+				}
+				const bool isFormType = type == "form" || type == "form,int" || type == "formint" || type == "formid,int" || type == "formidint";
+				const bool isEnumType = type == "enum";
+				if ((isFormType && (operation == "mul" || operation == "mult" || operation == "multiply")) ||
+					(isEnumType && operation != "set")) {
+					logger::warn(FMT_STRING("OMOD {:08X}: operation '{}' is not valid for type '{}'"), curobj->formID, parts[2], parts[1]);
+					continue;
+				}
+				property.op = operation == "add" ? RE::BGSMod::Property::OP::kAdd :
+					operation == "mul" || operation == "mult" || operation == "multiply" || operation == "rem" || operation == "remove" ? RE::BGSMod::Property::OP::kMul :
+					RE::BGSMod::Property::OP::kSet;
+
+				try {
+					if (type == "float") {
+						property.type = RE::BGSMod::Property::TYPE::kFloat;
+						property.data.mm.min.f = operation == "rem" || operation == "remove" ? 0.0f : std::stof(parts[3]);
+						property.data.mm.max.f = operation == "rem" || operation == "remove" ? 0.0f : parts.size() >= 5 ? std::stof(parts[4]) : 0.0f;
+					} else if (type == "int" || type == "integer") {
+						property.type = RE::BGSMod::Property::TYPE::kInt;
+						property.data.mm.min.i = operation == "rem" || operation == "remove" ? 0 : std::stoi(parts[3]);
+						property.data.mm.max.i = operation == "rem" || operation == "remove" ? 0 : parts.size() >= 5 ? std::stoi(parts[4]) : 0;
+					} else if (type == "bool" || type == "enum") {
+						property.type = type == "bool" ? RE::BGSMod::Property::TYPE::kBool : RE::BGSMod::Property::TYPE::kEnum;
+						property.data.mm.min.i = operation == "rem" || operation == "remove" ? 0 : std::stoi(parts[3]);
+						property.data.mm.max.i = 0;
+					} else if (type == "form") {
+						property.type = RE::BGSMod::Property::TYPE::kForm;
+						auto* form = GetFormFromIdentifier(parts[3]);
+						if (!form) {
+							throw std::invalid_argument("form not found");
+						}
+						property.data.form = form;
+					} else if ((type == "form,int" || type == "formint" || type == "formid,int" || type == "formidint") && parts.size() >= 5) {
+						// Bethesda's runtime representation for these properties is a
+						// form pointer in this native structure. The second integer is
+						// an xEdit/serialized representation detail; writing it into
+						// the DATATYPE union would overwrite the 64-bit form pointer.
+						// Accept the documented form,int syntax, but keep the native
+						// value identical to the safe form path.
+						property.type = RE::BGSMod::Property::TYPE::kForm;
+						auto* form = GetFormFromIdentifier(parts[3]);
+						if (!form) {
+							throw std::invalid_argument("form not found");
+						}
+						property.data.form = form;
+					} else if (type == "pair" && parts.size() >= 5) {
+						property.type = RE::BGSMod::Property::TYPE::kPair;
+						auto* form = GetFormFromIdentifier(parts[3]);
+						if (!form) {
+							throw std::invalid_argument("pair form not found");
+						}
+						property.data.fv.formID = form->formID;
+						property.data.fv.value = std::stof(parts[4]);
+					} else {
+						throw std::invalid_argument("unsupported property type or missing value");
+					}
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("OMOD {:08X}: invalid property '{}': {}"), curobj->formID, definition, e.what());
+					continue;
+				}
+
+				++rebuiltCount;
+				changed = true;
+				++addedCount;
+			}
+
+			if (changed) {
+				data.attachments = rebuiltAttachments.get();
+				data.attachmentCount = attachmentCount;
+				data.propertyMods = rebuilt.get();
+				data.propertyModCount = rebuiltCount;
+				if (!EngineAdapters::ReplaceOmodData(curobj, data)) {
+					logger::critical(FMT_STRING("OMOD {:08X}: property addition rejected; original buffer preserved"), curobj->formID);
+					return;
+				}
+				RE::BGSMod::Attachment::Mod::Data verifyData;
+				if (!ReadData(curobj, verifyData)) {
+					return;
+				}
+				logger::debug(FMT_STRING("OMOD {:08X}: native SetData verification reports {} property definition(s)"), curobj->formID, verifyData.propertyModCount);
+				logger::debug(FMT_STRING("OMOD {:08X}: added {} property definition(s)"), curobj->formID, addedCount);
+				if (verifyData.propertyModCount > 0 && !verifyData.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: native SetData returned a property count without property data"), curobj->formID);
+				} else for (std::uint32_t i = 0; i < verifyData.propertyModCount; ++i) {
+					const auto& mod = verifyData.propertyMods[i];
+					if (mod.target != 61 && mod.target != 75) {
+						continue;
+					}
+					std::uint64_t rawData = 0;
+					std::memcpy(&rawData, std::addressof(mod.data), sizeof(rawData));
+					logger::debug(FMT_STRING("OMOD {:08X}: property target {} type {} op {} rawData {:016X} formPtr {:016X} int {} step {}"),
+						curobj->formID, static_cast<std::uint32_t>(mod.target), static_cast<std::uint32_t>(mod.type),
+						static_cast<std::uint32_t>(mod.op), rawData,
+						reinterpret_cast<std::uintptr_t>(mod.data.form), mod.data.mm.max.i, mod.step);
+				}
+			}
+		}
 
 		if (!line.fullName.empty() && line.fullName != "none") {
-			try {
-				logger::debug(FMT_STRING("omod formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
-				curobj->fullName = line.fullName;
-			} catch (const std::invalid_argument& e) {
-			}
+			logger::debug(FMT_STRING("omod formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
+			curobj->fullName = line.fullName;
 		}
 	
 		if (!line.functionTypeProperties.empty() ) {
 			for (uint32_t i = 0; i < line.functionTypeProperties.size(); i++) {
+				if (i >= line.functionTypeValues.size()) {
+					logger::warn(FMT_STRING("OMOD {:08X}: missing function type for property '{}'"), curobj->formID, line.functionTypeProperties[i]);
+					continue;
+				}
 				std::string lowercaseFunctionType = line.functionTypeProperties[i];
 				std::transform(lowercaseFunctionType.begin(), lowercaseFunctionType.end(), lowercaseFunctionType.begin(), [](unsigned char c) { return std::tolower(c); });
 				std::string lowercaseFunctionTypeValues = line.functionTypeValues[i];
 				std::transform(lowercaseFunctionTypeValues.begin(), lowercaseFunctionTypeValues.end(), lowercaseFunctionTypeValues.begin(), [](unsigned char c) { return std::tolower(c); });
 				RE::BGSMod::Attachment::Mod::Data data;
-				curobj->GetData(data);
-				int propertyId = getPropertyFromString(lowercaseFunctionType);
+				if (!ReadData(curobj, data)) {
+					continue;
+				}
+				if (data.propertyModCount > 0 && !data.propertyMods) {
+					logger::warn(FMT_STRING("OMOD {:08X}: property count is non-zero but property data is missing"), curobj->formID);
+					continue;
+				}
+				int propertyId = getPropertyFromString(lowercaseFunctionType, targetFormType);
 
 				for (uint32_t j = 0; j < data.propertyModCount; j++) {
 					auto& mod = data.propertyMods[j];
-					auto type = mod.type;
-
-					if (propertyId == mod.target) {
+					if (propertyId == static_cast<int>(mod.target)) {
 						//logger::debug(FMT_STRING("omod {:08X} {} removed property {}"), curobj->formID, curobj->fullName, line.propertiesToRemove[i]);
 						if (lowercaseFunctionTypeValues == "add") {
 							mod.op = RE::BGSMod::Property::OP::kAdd;
@@ -1547,40 +1289,7 @@ namespace OMOD
 			}
 		}
 
-		//if (!line.keywordsToAdd.empty()) {
-		//	for (size_t i = 0; i < line.keywordsToAdd.size(); i++) {
-		//		RE::TESForm* currentform = nullptr;
-		//		std::string string_form = line.keywordsToAdd[i];
-		//		currentform = GetFormFromIdentifier(string_form);
-		//		if (currentform && currentform->formType == RE::ENUM_FORM_ID::kKYWD) {
-		//			
-		//			logger::debug(FMT_STRING("omod formid: {:08X} {} keywordsize {} "), curobj->formID, curobj->fullName, curobj->filterKeywords.size);
-
-		//			//if (curobj->filterKeywords.HasKeyword((RE::BGSKeyword*)currentform)) {
-		//			//	logger::debug(FMT_STRING("omod formid: {:08X} {} added target keyword {:08X} {} "), curobj->formID, curobj->fullName, ((RE::BGSKeyword*)currentform)->formID, ((RE::BGSKeyword*)currentform)->formEditorID);
-		//			//} else {
-		//			//	logger::debug(FMT_STRING("omod formid: {:08X} {} has not added target keyword {:08X} {} "), curobj->formID, curobj->fullName, ((RE::BGSKeyword*)currentform)->formID, ((RE::BGSKeyword*)currentform)->formEditorID);
-
-		//			//}
-		//		}
-		//	}
-		//}
-
-		//if (!line.keywordsToRemove.empty()) {
-		//	for (size_t i = 0; i < line.keywordsToRemove.size(); i++) {
-		//		RE::TESForm* currentform = nullptr;
-		//		std::string string_form = line.keywordsToRemove[i];
-		//		currentform = GetFormFromIdentifier(string_form);
-		//		if (currentform && currentform->formType == RE::ENUM_FORM_ID::kKYWD) {
-		//			curobj->filterKeywords.RemoveKeywordModAssociation((RE::BGSKeyword*)currentform);
-		//			logger::debug(FMT_STRING("omod formid: {:08X} removed target keyword {:08X} {} "), curobj->formID, ((RE::BGSKeyword*)currentform)->formID, ((RE::BGSKeyword*)currentform)->formEditorID);
-		//		}
-		//	}
-		//}
-
-
-
-		return nullptr;
+		return;
 	}
 
 }

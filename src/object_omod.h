@@ -5,7 +5,7 @@ using namespace std;
 
 #	include "PCH.h"
 #	include "dirent.h"
-#	include "gameforms.h"
+
 #	include "utility.h"
 #	include <fstream>
 #	include <iostream>
@@ -18,13 +18,14 @@ namespace OMOD
 	struct line_content
 	{
 		std::vector<std::string> objects;
+		std::vector<std::string> objectsExcluded;
 
 		
 		std::vector<std::string> FormAnd;
 		std::vector<std::string> PropertyAnd;
 		std::vector<std::string> PropertyOr;
 		std::vector<std::string> PropertyExclude;
-		
+		std::vector<std::string> modNames;
 
 		std::vector<std::string> stringContainsAnd;
 		std::vector<std::string> stringContainsOr;
@@ -54,15 +55,13 @@ namespace OMOD
 		std::string description;
 		std::string connectionAnd;
 		std::string functionType;
-		std::vector<std::string> keywordsToAdd;
-		std::vector<std::string> keywordsToRemove;
 		std::vector<std::string> attachPointKeywordsFilter;
 	};
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(OMOD::line_content line, RE::BGSMod::Attachment::Mod* curobj);
+	void readConfig(const std::string& folder);
+	void patch(const OMOD::line_content& line, RE::BGSMod::Attachment::Mod* curobj);
 }
 
 #endif

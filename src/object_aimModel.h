@@ -39,8 +39,8 @@ namespace AIMMODEL
 
 	struct patch_instruction create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<patch_instruction>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(AIMMODEL::patch_instruction line, RE::BGSAimModel* curobj);
+	void readConfig(const std::string& folder);
+	void patch(AIMMODEL::patch_instruction line, RE::BGSAimModel* curobj);
 }
 
 #endif

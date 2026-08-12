@@ -144,10 +144,9 @@ namespace OUTFIT
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
-		std::string extension = ".ini";
 
 		DIR* dir;
 		struct dirent* ent;
@@ -166,9 +165,8 @@ namespace OUTFIT
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr) && !IsPluginInstalled(modname)) {
 									logger::info(FMT_STRING("{} not found or is not a valid plugin file, skipping config file {}."), modname, fullPath);
@@ -203,17 +201,18 @@ namespace OUTFIT
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
-	void* patch(line_content line, RE::BGSOutfit* curobj)
+	void patch(line_content line, RE::BGSOutfit* curobj)
 	{
 		if (!curobj) {
-			return nullptr;
+			return;
 		}
 
 		const auto target = FormatFormID(curobj);
 		PATCH::RecordMatch(CATEGORY, target);
+		PATCH::RecordPatchCall(CATEGORY);
 
 		if (IsTrue(line.clear)) {
 			RecordOrApplyClear(curobj, target);
@@ -228,6 +227,6 @@ namespace OUTFIT
 			AddItem(curobj, target, item);
 		}
 
-		return nullptr;
+		return;
 	}
 }

@@ -20,8 +20,8 @@ namespace OUTFIT
 
 	line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(line_content line, RE::BGSOutfit* curobj);
+	void readConfig(const std::string& folder);
+	void patch(line_content line, RE::BGSOutfit* curobj);
 }
 
 #endif

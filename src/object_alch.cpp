@@ -1,4 +1,6 @@
 #include "object_alch.h"
+#include "EngineAdapters.h"
+
 namespace ALCH
 {
 
@@ -6,414 +8,25 @@ namespace ALCH
 	{
 		line_content l;
 
-		// extract objects
-		std::regex objects_regex("filterByAlchs\\s*=([^:]+)", regex::icase);
-		std::smatch objects_match;
-		std::regex_search(line, objects_match, objects_regex);
-		std::vector<std::string> objects;
-		if (objects_match.empty() || objects_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string objects_str = objects_match[1];
-			std::regex objects_list_regex("[a-zA-Z0-9_\\-. ]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
-			std::sregex_iterator objects_end;
-			while (objects_iterator != objects_end) {
-				std::string tempVar = (*objects_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("filterByAlchs: {}"), tempVar);
-				if (tempVar != "none") {
-					objects.push_back(tempVar);
-				}
-				++objects_iterator;
-			}
-			l.objects = objects;
-		}
-
-		// extract objectsExcluded
-		std::regex objectsExcluded_regex("filterByAlchsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch objectsExcluded_match;
-		std::regex_search(line, objectsExcluded_match, objectsExcluded_regex);
-		std::vector<std::string> objectsExcluded;
-		if (objectsExcluded_match.empty() || objectsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string objectsExcluded_str = objectsExcluded_match[1];
-			std::regex objectsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objectsExcluded_iterator(objectsExcluded_str.begin(), objectsExcluded_str.end(), objectsExcluded_list_regex);
-			std::sregex_iterator objectsExcluded_end;
-			while (objectsExcluded_iterator != objectsExcluded_end) {
-				std::string tempVar = (*objectsExcluded_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (tempVar != "none") {
-					objectsExcluded.push_back(tempVar);
-				}
-				++objectsExcluded_iterator;
-			}
-			l.objectExcluded = objectsExcluded;
-		}
-
-		// extract keywords
-		std::regex keywords_regex("filterByKeywords\\s*=([^:]+)", regex::icase);
-		std::smatch keywords_match;
-		std::regex_search(line, keywords_match, keywords_regex);
-		std::vector<std::string> keywords;
-		if (keywords_match.empty() || keywords_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywords_str = keywords_match[1];
-			std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
-			std::sregex_iterator keywords_end;
-			while (keywords_iterator != keywords_end) {
-				std::string keyword = (*keywords_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywords.push_back(keyword);
-				}
-				++keywords_iterator;
-			}
-			l.keywords = keywords;
-		}
-
-		// extract keywords
-		std::regex keywordsOr_regex("filterByKeywordsOr\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsOr_match;
-		std::regex_search(line, keywordsOr_match, keywordsOr_regex);
-		std::vector<std::string> keywordsOr;
-		if (keywordsOr_match.empty() || keywordsOr_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsOr_str = keywordsOr_match[1];
-			std::regex keywordsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsOr_iterator(keywordsOr_str.begin(), keywordsOr_str.end(), keywordsOr_list_regex);
-			std::sregex_iterator keywordsOr_end;
-			while (keywordsOr_iterator != keywordsOr_end) {
-				std::string keyword = (*keywordsOr_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsOr.push_back(keyword);
-				}
-				++keywordsOr_iterator;
-			}
-			l.keywordsOr = keywordsOr;
-		}
-
-		// extract keywords
-		std::regex keywordsExcluded_regex("filterByKeywordsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsExcluded_match;
-		std::regex_search(line, keywordsExcluded_match, keywordsExcluded_regex);
-		std::vector<std::string> keywordsExcluded;
-		if (keywordsExcluded_match.empty() || keywordsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsExcluded_str = keywordsExcluded_match[1];
-			std::regex keywordsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsExcluded_iterator(keywordsExcluded_str.begin(), keywordsExcluded_str.end(), keywordsExcluded_list_regex);
-			std::sregex_iterator keywordsExcluded_end;
-			while (keywordsExcluded_iterator != keywordsExcluded_end) {
-				std::string keyword = (*keywordsExcluded_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsExcluded.push_back(keyword);
-				}
-				++keywordsExcluded_iterator;
-			}
-			l.keywordsExcluded = keywordsExcluded;
-		}
-
-		// extract Mgefs
-		std::regex Mgefs_regex("filterByMgefs\\s*=([^:]+)", regex::icase);
-		std::smatch Mgefs_match;
-		std::regex_search(line, Mgefs_match, Mgefs_regex);
-		std::vector<std::string> Mgefs;
-		if (Mgefs_match.empty() || Mgefs_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string Mgefs_str = Mgefs_match[1];
-			std::regex Mgefs_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator Mgefs_iterator(Mgefs_str.begin(), Mgefs_str.end(), Mgefs_list_regex);
-			std::sregex_iterator Mgefs_end;
-			while (Mgefs_iterator != Mgefs_end) {
-				std::string keyword = (*Mgefs_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					Mgefs.push_back(keyword);
-				}
-				++Mgefs_iterator;
-			}
-			l.mgefs = Mgefs;
-		}
-
-		// extract Mgefs
-		std::regex MgefsOr_regex("filterByMgefsOr\\s*=([^:]+)", regex::icase);
-		std::smatch MgefsOr_match;
-		std::regex_search(line, MgefsOr_match, MgefsOr_regex);
-		std::vector<std::string> MgefsOr;
-		if (MgefsOr_match.empty() || MgefsOr_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string MgefsOr_str = MgefsOr_match[1];
-			std::regex MgefsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator MgefsOr_iterator(MgefsOr_str.begin(), MgefsOr_str.end(), MgefsOr_list_regex);
-			std::sregex_iterator MgefsOr_end;
-			while (MgefsOr_iterator != MgefsOr_end) {
-				std::string keyword = (*MgefsOr_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					MgefsOr.push_back(keyword);
-				}
-				++MgefsOr_iterator;
-			}
-			l.mgefsOr = MgefsOr;
-		}
-
-		// extract Mgefs
-		std::regex MgefsExcluded_regex("filterByMgefsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch MgefsExcluded_match;
-		std::regex_search(line, MgefsExcluded_match, MgefsExcluded_regex);
-		std::vector<std::string> MgefsExcluded;
-		if (MgefsExcluded_match.empty() || MgefsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string MgefsExcluded_str = MgefsExcluded_match[1];
-			std::regex MgefsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator MgefsExcluded_iterator(MgefsExcluded_str.begin(), MgefsExcluded_str.end(), MgefsExcluded_list_regex);
-			std::sregex_iterator MgefsExcluded_end;
-			while (MgefsExcluded_iterator != MgefsExcluded_end) {
-				std::string keyword = (*MgefsExcluded_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					MgefsExcluded.push_back(keyword);
-				}
-				++MgefsExcluded_iterator;
-			}
-			l.mgefsExcluded = MgefsExcluded;
-		}
-
-		// extract keywordsToAdd
-		std::regex keywordsToAdd_regex("keywordsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToAdd_match;
-		std::regex_search(line, keywordsToAdd_match, keywordsToAdd_regex);
-		std::vector<std::string> keywordsToAdd;
-		if (keywordsToAdd_match.empty() || keywordsToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToAdd_str = keywordsToAdd_match[1];
-			std::regex keywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToAdd_iterator(keywordsToAdd_str.begin(), keywordsToAdd_str.end(), keywordsToAdd_list_regex);
-			std::sregex_iterator keywordsToAdd_end;
-			while (keywordsToAdd_iterator != keywordsToAdd_end) {
-				std::string keywordToAdd = (*keywordsToAdd_iterator)[0].str();
-				keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-				keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-				if (keywordToAdd != "none") {
-					//logger::info(FMT_STRING("keywordsToAdd: {}"), keywordToAdd);
-					keywordsToAdd.push_back(keywordToAdd);
-				}
-				++keywordsToAdd_iterator;
-			}
-			l.keywordsToAdd = keywordsToAdd;
-		}
-
-		// extract keywordsToRemove
-		std::regex keywordsToRemove_regex("keywordsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToRemove_match;
-		std::regex_search(line, keywordsToRemove_match, keywordsToRemove_regex);
-		std::vector<std::string> keywordsToRemove;
-		if (keywordsToRemove_match.empty() || keywordsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToRemove_str = keywordsToRemove_match[1];
-			std::regex keywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToRemove_iterator(keywordsToRemove_str.begin(), keywordsToRemove_str.end(), keywordsToRemove_list_regex);
-			std::sregex_iterator keywordsToRemove_end;
-			while (keywordsToRemove_iterator != keywordsToRemove_end) {
-				std::string keywordToRemove = (*keywordsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("keywordsToRemove: {}"), keywordToRemove);
-					keywordsToRemove.push_back(keywordToRemove);
-				}
-				++keywordsToRemove_iterator;
-			}
-			l.keywordsToRemove = keywordsToRemove;
-		}
-
-		std::regex add_regex("mgefsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch add_match;
-		std::regex_search(line, add_match, add_regex);
-		std::vector<std::string> add;
-		if (add_match.empty() || add_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string valueLine = add_match[1].str();
-			std::vector<std::string> arr;
-
-			// exclude the addToLL= part from the first string
-			size_t startPos = valueLine.find("=") + 1;
-			size_t pos = 0;
-			std::string token;
-			while ((pos = valueLine.find(",", startPos)) != std::string::npos) {
-				token = valueLine.substr(startPos, pos - startPos);
-				token = trim(token);  // remove leading and trailing white spaces
-				arr.push_back(token);
-				startPos = pos + 1;
-			}
-			token = valueLine.substr(startPos);
-			token = trim(token);  // remove leading and trailing white spaces
-			arr.push_back(token);
-
-			std::vector<std::vector<std::string>> arr2D(arr.size());
-
-			for (int i = 0; i < arr.size(); i++) {
-				std::vector<std::string> splitArr;
-				size_t innerPos = 0;
-				std::string innerToken;
-				while ((innerPos = arr[i].find("~")) != std::string::npos) {
-					innerToken = arr[i].substr(0, innerPos);
-					innerToken = trim(innerToken);  // remove leading and trailing white spaces
-					splitArr.push_back(innerToken);
-					arr[i].erase(0, innerPos + 1);
-				}
-				innerToken = arr[i];
-				innerToken = trim(innerToken);  // remove leading and trailing white spaces
-				splitArr.push_back(innerToken);
-				arr2D[i] = splitArr;
-			}
-			l.addedObjects = arr2D;
-		}
-
-		std::regex change_regex("mgefsToChange\\s*=([^:]+)", regex::icase);
-		std::smatch change_match;
-		std::regex_search(line, change_match, change_regex);
-		std::vector<std::string> change;
-		if (change_match.empty() || change_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string valueLine = change_match[1].str();
-			std::vector<std::string> arr;
-
-			// exclude the changeToLL= part from the first string
-			size_t startPos = valueLine.find("=") + 1;
-			size_t pos = 0;
-			std::string token;
-			while ((pos = valueLine.find(",", startPos)) != std::string::npos) {
-				token = valueLine.substr(startPos, pos - startPos);
-				token = trim(token);  // remove leading and trailing white spaces
-				arr.push_back(token);
-				startPos = pos + 1;
-			}
-			token = valueLine.substr(startPos);
-			token = trim(token);  // remove leading and trailing white spaces
-			arr.push_back(token);
-
-			std::vector<std::vector<std::string>> arr2D(arr.size());
-
-			for (int i = 0; i < arr.size(); i++) {
-				std::vector<std::string> splitArr;
-				size_t innerPos = 0;
-				std::string innerToken;
-				while ((innerPos = arr[i].find("~")) != std::string::npos) {
-					innerToken = arr[i].substr(0, innerPos);
-					innerToken = trim(innerToken);  // remove leading and trailing white spaces
-					splitArr.push_back(innerToken);
-					arr[i].erase(0, innerPos + 1);
-				}
-				innerToken = arr[i];
-				innerToken = trim(innerToken);  // remove leading and trailing white spaces
-				splitArr.push_back(innerToken);
-				arr2D[i] = splitArr;
-			}
-			l.changedObjects = arr2D;
-		}
-
-			// extract removeMgefs
-		std::regex removeMgefs_regex("mgefsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch removeMgefs_match;
-		std::regex_search(line, removeMgefs_match, removeMgefs_regex);
-		std::vector<std::string> removeMgefs;
-		if (removeMgefs_match.empty() || removeMgefs_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string removeMgefs_str = removeMgefs_match[1];
-			std::regex removeMgefs_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator removeMgefs_iterator(removeMgefs_str.begin(), removeMgefs_str.end(), removeMgefs_list_regex);
-			std::sregex_iterator removeMgefs_end;
-			while (removeMgefs_iterator != removeMgefs_end) {
-				std::string keyword = (*removeMgefs_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					removeMgefs.push_back(keyword);
-				}
-				++removeMgefs_iterator;
-			}
-			l.removedObjects = removeMgefs;
-		}
-
-		// extract type
-		std::regex type_regex("filterByType\\s*=([^:]+)", regex::icase);
-		std::smatch typematch;
-		std::regex_search(line, typematch, type_regex);
-		// extract the value after the equals sign
-		if (typematch.empty() || typematch[1].str().empty()) {
-			l.filterType = "none";
-		} else {
-			std::string value = typematch[1].str();
-			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-			l.filterType = value;
-		}
-
-						// extract weight
-		std::regex weight_regex("weight\\s*=([^:]+)", regex::icase);
-		std::smatch weightmatch;
-		std::regex_search(line, weightmatch, weight_regex);
-		// extract the value after the equals sign
-		if (weightmatch.empty() || weightmatch[1].str().empty()) {
-			l.weight = "none";
-		} else {
-			std::string value = weightmatch[1].str();
-			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-			l.weight = value;
-		}
-
-		// extract capsvalue
-		std::regex capsvalue_regex("value\\s*=([^:]+)", regex::icase);
-		std::smatch capsvaluematch;
-		std::regex_search(line, capsvaluematch, capsvalue_regex);
-		// extract the value after the equals sign
-		if (capsvaluematch.empty() || capsvaluematch[1].str().empty()) {
-			l.capsvalue = "none";
-		} else {
-			std::string value = capsvaluematch[1].str();
-			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-			l.capsvalue = value;
-		}
-
-		// extract fullName
-		std::regex fullName_regex("fullName\\s*=\\s*~([^~]+?)\\s*~");
-		std::smatch namematch;
-		std::regex_search(line, namematch, fullName_regex);
-		// extract the value after the equals sign
-		if (namematch.empty() || namematch[1].str().empty()) {
-			l.fullName = "none";
-		} else {
-			std::string namevalue = namematch[1].str();
-			namevalue.erase(namevalue.begin(), std::find_if_not(namevalue.begin(), namevalue.end(), ::isspace));
-			namevalue.erase(std::find_if_not(namevalue.rbegin(), namevalue.rend(), ::isspace).base(), namevalue.end());
-			l.fullName = namevalue;
-		}
+		extractForms(line, "filterByAlchs\\s*=([^:]+)", l.objects);
+		extractForms(line, "filterByAlchsExcluded\\s*=([^:]+)", l.objectExcluded);
+		extractForms(line, "filterByKeywords\\s*=([^:]+)", l.keywords);
+		extractForms(line, "filterByKeywordsOr\\s*=([^:]+)", l.keywordsOr);
+		extractForms(line, "filterByKeywordsExcluded\\s*=([^:]+)", l.keywordsExcluded);
+		extractForms(line, "filterByMgefs\\s*=([^:]+)", l.mgefs);
+		extractForms(line, "filterByMgefsOr\\s*=([^:]+)", l.mgefsOr);
+		extractForms(line, "filterByMgefsExcluded\\s*=([^:]+)", l.mgefsExcluded);
+		extractForms(line, "keywordsToAdd\\s*=([^:]+)", l.keywordsToAdd);
+		extractForms(line, "keywordsToRemove\\s*=([^:]+)", l.keywordsToRemove);
+		extractToArr2D(line, "mgefsToAdd\\s*=([^:]+)", l.addedObjects);
+		extractToArr2D(line, "mgefsToChange\\s*=([^:]+)", l.changedObjects);
+		extractForms(line, "mgefsToRemove\\s*=([^:]+)", l.removedObjects);
+		extractValueString(line, "filterByType\\s*=([^:]+)", l.filterType);
+		extractValueString(line, "weight\\s*=([^:]+)", l.weight);
+		extractValueString(line, "value\\s*=([^:]+)", l.capsvalue);
+		extractValueString(line, "clear\\s*=([^:]+)", l.clear);
+		extractValueString(line, "fullName\\s*=\\s*~([^~]+?)\\s*~", l.fullName);
+		extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
 		return l;
 	}
@@ -422,14 +35,29 @@ namespace ALCH
 	{
 		logger::debug("processing patch instructions");
 		const auto dataHandler = RE::TESDataHandler::GetSingleton();
-		RE::BSTArray<RE::AlchemyItem*> objectArray = dataHandler->GetFormArray<RE::AlchemyItem>();
+		const auto& objectArray = dataHandler->GetFormArray<RE::AlchemyItem>();
 		for (const auto& line : tokens) {
+			if (!line.filterType.empty()) {
+				logger::warn(FMT_STRING("Ingestible filterByType '{}' is not mapped to a verified FO4VR field; skipping rule"), line.filterType);
+				continue;
+			}
 			for (const auto& curobj : objectArray) {
+				if (!curobj) {
+					continue;
+				}
 				bool found = false;
 				bool keywordAnd = false;
 				bool keywordOr = false;
 				bool mgefAnd = false;
 				bool mgefOr = false;
+
+				if (curobj->IsDeleted()) {
+					continue;
+				}
+
+				if (!FormMatchesModNames(curobj, line.modNames)) {
+					continue;
+				}
 
 				if (!line.objects.empty()) {
 					//logger::info("npc not empty");
@@ -506,7 +134,7 @@ namespace ALCH
 				}
 
 				if (!line.mgefs.empty()) {
-					bool foundInList = false;
+					mgefAnd = true;
 					for (const auto& mgefstring : line.mgefs) {
 						RE::TESForm* currentform = nullptr;
 						RE::EffectSetting* keyword = nullptr;
@@ -515,8 +143,9 @@ namespace ALCH
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kMGEF) {
 							keyword = (RE::EffectSetting*)currentform;
+							bool foundInList = false;
 							for (const auto& effect : curobj->listOfEffects) {
-								if (effect->effectSetting->formID == keyword->formID) {
+								if (effect && effect->effectSetting && effect->effectSetting->formID == keyword->formID) {
 									foundInList = true;
 									break;
 								}
@@ -525,14 +154,14 @@ namespace ALCH
 								mgefAnd = false;
 								break;
 							}
+						} else {
+							logger::warn(FMT_STRING("Ingestible {:08X}: invalid filterByMgefs form '{}'"), curobj->formID, mgefstring);
+							mgefAnd = false;
+							break;
 						}
 					}
-					if (foundInList) {
-						mgefAnd = true;
-					}
 				} else {
-					//logger::debug(FMT_STRING("KeywordAnd is empty, we pass true."));
-					keywordAnd = true;
+					mgefAnd = true;
 				}
 				if (!line.mgefsOr.empty()) {
 					for (const auto& mgefstring : line.mgefsOr) {
@@ -545,7 +174,7 @@ namespace ALCH
 							keyword = (RE::EffectSetting*)currentform;
 
 							for (const auto& effect : curobj->listOfEffects) {
-								if (effect->effectSetting->formID == keyword->formID) {
+								if (effect && effect->effectSetting && effect->effectSetting->formID == keyword->formID) {
 									mgefOr = true;
 									//logger::debug(FMT_STRING("KeywordOr has at least one keyword true {:08X} {}"), curobj->formID, curobj->fullName);
 									//logger::info("Keyword found.");
@@ -602,8 +231,8 @@ namespace ALCH
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kMGEF) {
 							keyword = (RE::EffectSetting*)currentform;
-							for (const auto& effect : curobj->listOfEffects) {
-								if (effect->effectSetting->formID == keyword->formID) {
+						for (const auto& effect : curobj->listOfEffects) {
+							if (effect && effect->effectSetting && effect->effectSetting->formID == keyword->formID) {
 									found = false;
 									//logger::debug(FMT_STRING("KeywordOr has at least one keyword true {:08X} {}"), curobj->formID, curobj->fullName);
 									//logger::info("Keyword found.");
@@ -672,48 +301,97 @@ namespace ALCH
 						}
 					}
 				}
-				
+
+
+				if (found && (toLowerCase(line.clear) == "true" || toLowerCase(line.clear) == "yes")) {
+					curobj->listOfEffects.clear();
+					logger::debug(FMT_STRING("ingestible {:08X} {} cleared all effects"), curobj->formID, curobj->fullName);
+				}
+
+				if (found && !line.removedObjects.empty()) {
+					for (const auto& objectToRemove : line.removedObjects) {
+						std::string removeFormStr = objectToRemove;
+						RE::EffectSetting* removeForm = (RE::EffectSetting*)GetFormFromIdentifier(removeFormStr);
+						if (removeForm) {
+						curobj->listOfEffects.erase(std::remove_if(curobj->listOfEffects.begin(), curobj->listOfEffects.end(), [&](const RE::EffectItem* x) {
+								bool removed = x && x->effectSetting && x->effectSetting->formID == removeForm->formID;
+								if (removed) {
+									logger::debug(FMT_STRING("ingestible {:08X} {} removed effect {:08X}"), curobj->formID, curobj->fullName, removeForm->formID);
+								}
+								return removed;
+							}),
+								curobj->listOfEffects.end());
+						}
+					}
+				}
 
 				if (found && !line.addedObjects.empty()) {
 					for (const auto& objectToAdd : line.addedObjects) {
+						if (objectToAdd.size() < 4) {
+							logger::error("Invalid mgefsToAdd entry: expected form, magnitude, duration and area");
+							continue;
+						}
 						std::string addFormStr = objectToAdd[0];
-						float magnitude = std::stof(objectToAdd[1]);
-						int32_t duration = std::stoi(objectToAdd[2]);
-						int32_t area = std::stoi(objectToAdd[3]);
 						RE::EffectSetting* addForm = (RE::EffectSetting*)GetFormFromIdentifier(addFormStr);
-						RE::EffectItem* tempEffectItem = new RE::EffectItem;
-						tempEffectItem->effectSetting = addForm;
-						tempEffectItem->data.magnitude = magnitude;
-						tempEffectItem->data.duration = duration;
-						tempEffectItem->data.area = area;
-						
-						curobj->listOfEffects.push_back(createNewEffectItem(tempEffectItem, addForm, magnitude, duration, area));
+						if (!addForm || addForm->formType != RE::ENUM_FORM_ID::kMGEF) {
+							logger::error(FMT_STRING("Invalid magic effect form in mgefsToAdd: {}"), addFormStr);
+							continue;
+						}
+						float magnitude = 0.0f;
+						int32_t duration = 0;
+						int32_t area = 0;
+						try {
+							magnitude = std::stof(objectToAdd[1]);
+							duration = std::stoi(objectToAdd[2]);
+							area = std::stoi(objectToAdd[3]);
+						} catch (const std::exception&) {
+							logger::error(FMT_STRING("Invalid numeric value in mgefsToAdd entry for {}"), addFormStr);
+							continue;
+						}
+						if (auto* effectItem = EngineAdapters::CreateEffectItem(addForm, magnitude, duration, area)) {
+							try {
+								curobj->listOfEffects.push_back(effectItem);
+							} catch (...) {
+								EngineAdapters::DestroyEffectItem(effectItem);
+								throw;
+							}
+						} else {
+							logger::warn(FMT_STRING("Ingestible {:08X}: failed to create magic effect item for {}"), curobj->formID, addFormStr);
+							continue;
+						}
 						logger::debug(FMT_STRING("ingestible {:08X} {} added effect {:08X} {} magitude {} duration {} area {}"), curobj->formID, curobj->fullName, addForm->formID, addForm->fullName, objectToAdd[1], objectToAdd[2], objectToAdd[3]);
 					}
 				}
 
 				if (found && !line.changedObjects.empty()) {
 					for (const auto& objectToAdd : line.changedObjects) {
+						if (objectToAdd.size() < 4) {
+							logger::warn(FMT_STRING("Ingestible {:08X}: invalid mgefsToChange entry; expected form, magnitude, duration and area"), curobj->formID);
+							continue;
+						}
 						std::string addFormStr = objectToAdd[0];
 						RE::EffectSetting* addForm = (RE::EffectSetting*)GetFormFromIdentifier(addFormStr);
-						if (addForm) {  // Only proceed if addForm is not null
+						if (addForm && addForm->formType == RE::ENUM_FORM_ID::kMGEF) {  // Only proceed if addForm is a magic effect
 							float magnitude = 0.0f;
-							if (objectToAdd[1] != "null") {
-								magnitude = std::stof(objectToAdd[1]);
-							}
-
 							int32_t duration = 0;
-							if (objectToAdd[2] != "null") {
-								duration = std::stoi(objectToAdd[2]);
-							}
-
 							int32_t area = 0;
-							if (objectToAdd[3] != "null") {
-								area = std::stoi(objectToAdd[3]);
+							try {
+								if (objectToAdd[1] != "null") {
+									magnitude = std::stof(objectToAdd[1]);
+								}
+								if (objectToAdd[2] != "null") {
+									duration = std::stoi(objectToAdd[2]);
+								}
+								if (objectToAdd[3] != "null") {
+									area = std::stoi(objectToAdd[3]);
+								}
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("Ingestible {:08X}: invalid mgefsToChange values for '{}': {}"), curobj->formID, addFormStr, e.what());
+								continue;
 							}
 
 							for (const auto& effect : curobj->listOfEffects) {
-								if (effect->effectSetting->formID == addForm->formID) {
+								if (effect && effect->effectSetting && effect->effectSetting->formID == addForm->formID) {
 									if (objectToAdd[1] != "null") {
 										effect->data.magnitude = magnitude;
 										logger::debug(FMT_STRING("ingestible {:08X} {} changed magnitude of {:08X} {} to {}"), curobj->formID, curobj->fullName, addForm->formID, addForm->fullName, effect->data.magnitude);
@@ -728,58 +406,40 @@ namespace ALCH
 									}
 								}
 							}
+						} else if (addForm) {
+							logger::warn(FMT_STRING("Ingestible {:08X}: '{}' is not a magic effect"), curobj->formID, addFormStr);
 						}
 					}
 				}
 
-
-
-				if (found && !line.removedObjects.empty()) {
-					for (const auto& objectToRemove : line.removedObjects) {
-						std::string removeFormStr = objectToRemove;
-						RE::EffectSetting* removeForm = (RE::EffectSetting*)GetFormFromIdentifier(removeFormStr);
-						if (removeForm) {
-							curobj->listOfEffects.erase(std::remove_if(curobj->listOfEffects.begin(), curobj->listOfEffects.end(), [&](const RE::EffectItem* x) {
-								bool removed = (x->effectSetting->formID == removeForm->formID);
-								if (removed) {
-									logger::debug(FMT_STRING("ingestible {:08X} {} removed effect {:08X}"), curobj->formID, curobj->fullName, removeForm->formID);
-								}
-								return removed;
-							}),	curobj->listOfEffects.end());
-
-						}
-
-					}
-				}
 
 				if (found && !line.weight.empty() && line.weight != "none") {
 					try {
 						curobj->weight = std::stof(line.weight);
 						logger::debug(FMT_STRING("ingestible formid: {:08X} {} changed weight {}"), curobj->formID, curobj->fullName, curobj->weight);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Ingestible {:08X}: invalid weight '{}': {}"), curobj->formID, line.weight, e.what());
 					}
 				}
 				if (found && !line.capsvalue.empty() && line.capsvalue != "none") {
 					try {
 						curobj->data.costOverride = std::stoi(line.capsvalue);
 						logger::debug(FMT_STRING("ingestible formid: {:08X} {} changed value {}"), curobj->formID, curobj->fullName, curobj->data.costOverride);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Ingestible {:08X}: invalid caps value '{}': {}"), curobj->formID, line.capsvalue, e.what());
 					}
 				}
 
 				if (found && !line.fullName.empty() && line.fullName != "none") {
-					try {
-						logger::debug(FMT_STRING("npc formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
-						curobj->fullName = line.fullName;
-					} catch (const std::invalid_argument& e) {
-					}
+					logger::debug(FMT_STRING("ingestible formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
+					curobj->fullName = line.fullName;
 				}
 
 			}
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
 		std::string extension = ".ini";
@@ -801,9 +461,8 @@ namespace ALCH
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -823,7 +482,10 @@ namespace ALCH
 								std::list<line_content> tokens;
 								infile.open(fullPath);
 								while (std::getline(infile, line)) {
-									if (line.empty() || line[0] == skipChar) {
+									if (line.empty()) {
+										continue;
+									}
+									if (line[0] == skipChar) {
 										continue;
 									}
 
@@ -841,7 +503,7 @@ namespace ALCH
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
 }

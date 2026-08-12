@@ -1,476 +1,75 @@
 #include "object_armors.h"
 #include "utility.h"
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 
 namespace ARMORS
 {
+	template <class T>
+	T checkedUnsignedValue(double value)
+	{
+		if (!std::isfinite(value) || value < 0.0 || value > static_cast<double>((std::numeric_limits<T>::max)())) {
+			throw std::out_of_range("value is outside the target field range");
+		}
+		return static_cast<T>(value);
+	}
 
 struct patch_instruction_armor create_patch_instruction_armor(const std::string& line)
 {
 	patch_instruction_armor l;
 
-	// extract objects
-	std::regex objects_regex("filterByArmors\\s*=([^:]+)", regex::icase);
-	std::smatch objects_match;
-	std::regex_search(line, objects_match, objects_regex);
-	std::vector<std::string> objects;
-	if (objects_match.empty() || objects_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string objects_str = objects_match[1];
-		std::regex objects_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
-		std::sregex_iterator objects_end;
-		while (objects_iterator != objects_end) {
-			std::string tempVar = (*objects_iterator)[0].str();
-			tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-			tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-			//logger::info(FMT_STRING("Race: {}"), race);
-			if (tempVar != "none") {
-				objects.push_back(tempVar);
-			}
-			++objects_iterator;
-		}
-		l.object = objects;
-	}
+	extractForms(line, "filterByArmors\\s*=([^:]+)", l.object);
 
-	// extract objectsExcluded
-	std::regex objectsExcluded_regex("filterByArmorsExcluded\\s*=([^:]+)", regex::icase);
-	std::smatch objectsExcluded_match;
-	std::regex_search(line, objectsExcluded_match, objectsExcluded_regex);
-	std::vector<std::string> objectsExcluded;
-	if (objectsExcluded_match.empty() || objectsExcluded_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string objectsExcluded_str = objectsExcluded_match[1];
-		std::regex objectsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator objectsExcluded_iterator(objectsExcluded_str.begin(), objectsExcluded_str.end(), objectsExcluded_list_regex);
-		std::sregex_iterator objectsExcluded_end;
-		while (objectsExcluded_iterator != objectsExcluded_end) {
-			std::string tempVar = (*objectsExcluded_iterator)[0].str();
-			tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-			tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-			if (tempVar != "none") {
-				objectsExcluded.push_back(tempVar);
-			}
-			++objectsExcluded_iterator;
-		}
-		l.objectExcluded = objectsExcluded;
-	}
+	extractForms(line, "filterByArmorsExcluded\\s*=([^:]+)", l.objectExcluded);
 
-	// extract keywords
-	std::regex keywords_regex("filterByKeywords\\s*=([^:]+)", regex::icase);
-	std::smatch keywords_match;
-	std::regex_search(line, keywords_match, keywords_regex);
-	std::vector<std::string> keywords;
-	if (keywords_match.empty() || keywords_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywords_str = keywords_match[1];
-		std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
-		std::sregex_iterator keywords_end;
-		while (keywords_iterator != keywords_end) {
-			std::string keyword = (*keywords_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywords.push_back(keyword);
-			}
-			++keywords_iterator;
-		}
-		l.keywords = keywords;
-	}
+	extractForms(line, "filterByKeywords\\s*=([^:]+)", l.keywords);
 
-	// extract keywords
-	std::regex keywordsOr_regex("filterByKeywordsOr\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsOr_match;
-	std::regex_search(line, keywordsOr_match, keywordsOr_regex);
-	std::vector<std::string> keywordsOr;
-	if (keywordsOr_match.empty() || keywordsOr_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsOr_str = keywordsOr_match[1];
-		std::regex keywordsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsOr_iterator(keywordsOr_str.begin(), keywordsOr_str.end(), keywordsOr_list_regex);
-		std::sregex_iterator keywordsOr_end;
-		while (keywordsOr_iterator != keywordsOr_end) {
-			std::string keyword = (*keywordsOr_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywordsOr.push_back(keyword);
-			}
-			++keywordsOr_iterator;
-		}
-		l.keywordsOr = keywordsOr;
-	}
+	extractForms(line, "filterByKeywordsOr\\s*=([^:]+)", l.keywordsOr);
 
-	// extract keywords
-	std::regex keywordsExcluded_regex("filterByKeywordsExcluded\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsExcluded_match;
-	std::regex_search(line, keywordsExcluded_match, keywordsExcluded_regex);
-	std::vector<std::string> keywordsExcluded;
-	if (keywordsExcluded_match.empty() || keywordsExcluded_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsExcluded_str = keywordsExcluded_match[1];
-		std::regex keywordsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsExcluded_iterator(keywordsExcluded_str.begin(), keywordsExcluded_str.end(), keywordsExcluded_list_regex);
-		std::sregex_iterator keywordsExcluded_end;
-		while (keywordsExcluded_iterator != keywordsExcluded_end) {
-			std::string keyword = (*keywordsExcluded_iterator)[0].str();
-			keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-			keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-			if (keyword != "none") {
-				keywordsExcluded.push_back(keyword);
-			}
-			++keywordsExcluded_iterator;
-		}
-		l.keywordsExcluded = keywordsExcluded;
-	}
+	extractForms(line, "filterByKeywordsExcluded\\s*=([^:]+)", l.keywordsExcluded);
 
-	// damageResist
-	std::regex damageResist_regex("damageResist\\s*=([^:]+)", regex::icase);
-	std::smatch damageResistmatch;
-	std::regex_search(line, damageResistmatch, damageResist_regex);
-	// extract the value after the equals sign
-	if (damageResistmatch.empty() || damageResistmatch[1].str().empty()) {
-		l.damageResist = "none";
-	} else {
-		std::string damageResistvalue = damageResistmatch[1].str();
-		damageResistvalue.erase(std::remove_if(damageResistvalue.begin(), damageResistvalue.end(), ::isspace), damageResistvalue.end());
-		l.damageResist = damageResistvalue;
-	}
+	extractValueString(line, "damageResist\\s*=([^:]+)", l.damageResist);
+	extractValueString(line, "damageResistToAdd\\s*=([^:]+)", l.damageResistToAdd);
+	extractValueString(line, "damageResistMult\\s*=([^:]+)", l.damageResistMult);
 
-	// damageResistMult
-	std::regex damageResistMult_regex("damageResistMult\\s*=([^:]+)", regex::icase);
-	std::smatch damageResistMultmatch;
-	std::regex_search(line, damageResistMultmatch, damageResistMult_regex);
-	if (damageResistMultmatch.empty() || damageResistMultmatch[1].str().empty()) {
-		l.damageResistMult = "none";
-	} else {
-		std::string value = damageResistMultmatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.damageResistMult = value;
-	}
+	extractValueString(line, "health\\s*=([^:]+)", l.health);
 
-	// damageResistToAdd
-	std::regex damageResistToAdd_regex("damageResistToAdd\\s*=([^:]+)", regex::icase);
-	std::smatch damageResistToAddmatch;
-	std::regex_search(line, damageResistToAddmatch, damageResistToAdd_regex);
-	if (damageResistToAddmatch.empty() || damageResistToAddmatch[1].str().empty()) {
-		l.damageResistToAdd = "none";
-	} else {
-		std::string value = damageResistToAddmatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.damageResistToAdd = value;
-	}
+	extractValueString(line, "weight\\s*=([^:]+)", l.weight);
 
-	// health
-	std::regex health_regex("health\\s*=([^:]+)", regex::icase);
-	std::smatch healthmatch;
-	std::regex_search(line, healthmatch, health_regex);
-	// extract the value after the equals sign
-	if (healthmatch.empty() || healthmatch[1].str().empty()) {
-		l.health = "none";
-	} else {
-		std::string healthvalue = healthmatch[1].str();
-		healthvalue.erase(std::remove_if(healthvalue.begin(), healthvalue.end(), ::isspace), healthvalue.end());
-		l.health = healthvalue;
-	}
+	extractValueString(line, "healthMult\\s*=([^:]+)", l.healthMult);
 
-	// healthMult
-	std::regex healthMult_regex("healthMult\\s*=([^:]+)", regex::icase);
-	std::smatch healthMultmatch;
-	std::regex_search(line, healthMultmatch, healthMult_regex);
-	if (healthMultmatch.empty() || healthMultmatch[1].str().empty()) {
-		l.healthMult = "none";
-	} else {
-		std::string value = healthMultmatch[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		l.healthMult = value;
-	}
+	extractValueString(line, "weightMult\\s*=([^:]+)", l.weightMult);
 
-	// weight
-	std::regex weight_regex("weight\\s*=([^:]+)", regex::icase);
-	std::smatch weightmatch;
-	std::regex_search(line, weightmatch, weight_regex);
-	// extract the value after the equals sign
-	if (weightmatch.empty() || weightmatch[1].str().empty()) {
-		l.weight = "none";
-	} else {
-		std::string weightvalue = weightmatch[1].str();
-		weightvalue.erase(std::remove_if(weightvalue.begin(), weightvalue.end(), ::isspace), weightvalue.end());
-		l.weight = weightvalue;
-	}
+	extractValueString(line, "objectEffect\\s*=([^:]+)", l.objectEffect);
 
-			// extract objectEffect
-	std::regex objectEffect_regex("objectEffect\\s*=([^:]+)", regex::icase);
-	std::smatch objectEffectmatch;
-	std::regex_search(line, objectEffectmatch, objectEffect_regex);
-	// extract the value after the equals sign
-	if (objectEffectmatch.empty() || objectEffectmatch[1].str().empty()) {
-		l.objectEffect = "none";
-	} else {
-		std::string keyword = objectEffectmatch[1].str();
-		keyword.erase(std::remove_if(keyword.begin(), keyword.end(), ::isspace), keyword.end());
-		l.objectEffect = keyword;
-	}
+	extractForms(line, "keywordsToAdd\\s*=([^:]+)", l.keywordsToAdd);
 
-	// extract keywordsToAdd
-	std::regex keywordsToAdd_regex("keywordsToAdd\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsToAdd_match;
-	std::regex_search(line, keywordsToAdd_match, keywordsToAdd_regex);
-	std::vector<std::string> keywordsToAdd;
-	if (keywordsToAdd_match.empty() || keywordsToAdd_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsToAdd_str = keywordsToAdd_match[1];
-		std::regex keywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsToAdd_iterator(keywordsToAdd_str.begin(), keywordsToAdd_str.end(), keywordsToAdd_list_regex);
-		std::sregex_iterator keywordsToAdd_end;
-		while (keywordsToAdd_iterator != keywordsToAdd_end) {
-			std::string keywordToAdd = (*keywordsToAdd_iterator)[0].str();
-			keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-			keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-			if (keywordToAdd != "none") {
-				//logger::info(FMT_STRING("keywordsToAdd: {}"), keywordToAdd);
-				keywordsToAdd.push_back(keywordToAdd);
-			}
-			++keywordsToAdd_iterator;
-		}
-		l.keywordsToAdd = keywordsToAdd;
-	}
+	extractForms(line, "keywordsToRemove\\s*=([^:]+)", l.keywordsToRemove);
 
-	// extract keywordsToRemove
-	std::regex keywordsToRemove_regex("keywordsToRemove\\s*=([^:]+)", regex::icase);
-	std::smatch keywordsToRemove_match;
-	std::regex_search(line, keywordsToRemove_match, keywordsToRemove_regex);
-	std::vector<std::string> keywordsToRemove;
-	if (keywordsToRemove_match.empty() || keywordsToRemove_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string keywordsToRemove_str = keywordsToRemove_match[1];
-		std::regex keywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator keywordsToRemove_iterator(keywordsToRemove_str.begin(), keywordsToRemove_str.end(), keywordsToRemove_list_regex);
-		std::sregex_iterator keywordsToRemove_end;
-		while (keywordsToRemove_iterator != keywordsToRemove_end) {
-			std::string keywordToRemove = (*keywordsToRemove_iterator)[0].str();
-			keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-			keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-			if (keywordToRemove != "none") {
-				//logger::info(FMT_STRING("keywordsToRemove: {}"), keywordToRemove);
-				keywordsToRemove.push_back(keywordToRemove);
-			}
-			++keywordsToRemove_iterator;
-		}
-		l.keywordsToRemove = keywordsToRemove;
-	}
+	extractForms(line, "attachParentSlotKeywordsToAdd\\s*=([^:]+)", l.attachParentSlotKeywordsToAdd);
 
-	// extract attachParentSlotKeywordsToAdd
-	std::regex attachParentSlotKeywordsToAdd_regex("attachParentSlotKeywordsToAdd\\s*=([^:]+)", regex::icase);
-	std::smatch attachParentSlotKeywordsToAdd_match;
-	std::regex_search(line, attachParentSlotKeywordsToAdd_match, attachParentSlotKeywordsToAdd_regex);
-	std::vector<std::string> attachParentSlotKeywordsToAdd;
-	if (attachParentSlotKeywordsToAdd_match.empty() || attachParentSlotKeywordsToAdd_match[1].str().empty()) {
-		// ammos_match[1] is null
-	} else {
-		std::string attachParentSlotKeywordsToAdd_str = attachParentSlotKeywordsToAdd_match[1];
-		std::regex attachParentSlotKeywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator attachParentSlotKeywordsToAdd_iterator(attachParentSlotKeywordsToAdd_str.begin(), attachParentSlotKeywordsToAdd_str.end(), attachParentSlotKeywordsToAdd_list_regex);
-		std::sregex_iterator attachParentSlotKeywordsToAdd_end;
-		while (attachParentSlotKeywordsToAdd_iterator != attachParentSlotKeywordsToAdd_end) {
-			std::string keywordToAdd = (*attachParentSlotKeywordsToAdd_iterator)[0].str();
-			keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-			keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-			if (keywordToAdd != "none") {
-				//logger::info(FMT_STRING("attachParentSlotKeywordsToAdd: {}"), keywordToAdd);
-				attachParentSlotKeywordsToAdd.push_back(keywordToAdd);
-			}
-			++attachParentSlotKeywordsToAdd_iterator;
-		}
-		l.attachParentSlotKeywordsToAdd = attachParentSlotKeywordsToAdd;
-	}
+	extractForms(line, "attachParentSlotKeywordsToRemove\\s*=([^:]+)", l.attachParentSlotKeywordsToRemove);
 
-		// extract attachParentSlotKeywordsToRemove
-	std::regex attachParentSlotKeywordsToRemove_regex("attachParentSlotKeywordsToRemove\\s*=([^:]+)", regex::icase);
-	std::smatch attachParentSlotKeywordsToRemove_match;
-	std::regex_search(line, attachParentSlotKeywordsToRemove_match, attachParentSlotKeywordsToRemove_regex);
-	std::vector<std::string> attachParentSlotKeywordsToRemove;
-	if (attachParentSlotKeywordsToRemove_match.empty() || attachParentSlotKeywordsToRemove_match[1].str().empty()) {
-		// ammos_match[1] is null
-	} else {
-		std::string attachParentSlotKeywordsToRemove_str = attachParentSlotKeywordsToRemove_match[1];
-		std::regex attachParentSlotKeywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-		std::sregex_iterator attachParentSlotKeywordsToRemove_iterator(attachParentSlotKeywordsToRemove_str.begin(), attachParentSlotKeywordsToRemove_str.end(), attachParentSlotKeywordsToRemove_list_regex);
-		std::sregex_iterator attachParentSlotKeywordsToRemove_end;
-		while (attachParentSlotKeywordsToRemove_iterator != attachParentSlotKeywordsToRemove_end) {
-			std::string keywordToRemove = (*attachParentSlotKeywordsToRemove_iterator)[0].str();
-			keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-			keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-			if (keywordToRemove != "none") {
-				//logger::info(FMT_STRING("attachParentSlotKeywordsToRemove: {}"), keywordToRemove);
-				attachParentSlotKeywordsToRemove.push_back(keywordToRemove);
-			}
-			++attachParentSlotKeywordsToRemove_iterator;
-		}
-		l.attachParentSlotKeywordsToRemove = attachParentSlotKeywordsToRemove;
-	}
+	extractStrings(line, "filterByBipedSlots\\s*=([^:]+)", l.bipedSlot);
 
-	// extract filterBipedSlot
-	std::regex filterBipedSlot_regex("filterByBipedSlots\\s*=([^:]+)", regex::icase);
-	std::smatch filterBipedSlot_match;
-	std::regex_search(line, filterBipedSlot_match, filterBipedSlot_regex);
-	// extract the value after the equals sign
-	if (filterBipedSlot_match.empty() || filterBipedSlot_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string value = filterBipedSlot_match[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		std::stringstream ss(value);
-		std::string item;
-		while (std::getline(ss, item, ',')) {
-			l.bipedSlot.push_back(item);
-		}
-	}
+	extractStrings(line, "filterByBipedSlotsOr\\s*=([^:]+)", l.bipedSlotOr);
 
-	// extract filterBipedSlotOr
-	std::regex filterBipedSlotOr_regex("filterByBipedSlotsOr\\s*=([^:]+)", regex::icase);
-	std::smatch filterBipedSlotOr_match;
-	std::regex_search(line, filterBipedSlotOr_match, filterBipedSlotOr_regex);
-	// extract the value after the equals sign
-	if (filterBipedSlotOr_match.empty() || filterBipedSlotOr_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string value = filterBipedSlotOr_match[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		std::stringstream ss(value);
-		std::string item;
-		while (std::getline(ss, item, ',')) {
-			l.bipedSlotOr.push_back(item);
-		}
-	}
+	extractStrings(line, "filterByBipedSlotsExcluded\\s*=([^:]+)", l.bipedSlotExcluded);
 
-	// extract filterBipedSlotExcluded
-	std::regex filterBipedSlotExcluded_regex("filterByBipedSlotsExcluded\\s*=([^:]+)", regex::icase);
-	std::smatch filterBipedSlotExcluded_match;
-	std::regex_search(line, filterBipedSlotExcluded_match, filterBipedSlotExcluded_regex);
-	// extract the value after the equals sign
-	if (filterBipedSlotExcluded_match.empty() || filterBipedSlotExcluded_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string value = filterBipedSlotExcluded_match[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		std::stringstream ss(value);
-		std::string item;
-		while (std::getline(ss, item, ',')) {
-			l.bipedSlot.push_back(item);
-		}
-	}
+	extractStrings(line, "bipedSlotsToAdd\\s*=([^:]+)", l.setBipedSlot);
 
-	// extract setBipedSlot
-	std::regex setBipedSlot_regex("bipedSlotsToAdd\\s*=([^:]+)", regex::icase);
-	std::smatch setBipedSlot_match;
-	std::regex_search(line, setBipedSlot_match, setBipedSlot_regex);
-	// extract the value after the equals sign
-	if (setBipedSlot_match.empty() || setBipedSlot_match[1].str().empty()) {
-	} else {
-		std::string value = setBipedSlot_match[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		std::stringstream ss(value);
-		std::string item;
-		while (std::getline(ss, item, ',')) {
-			l.setBipedSlot.push_back(item);
-		}
-	}
+	extractStrings(line, "bipedSlotsToRemove\\s*=([^:]+)", l.removeBipedSlot);
 
-	// extract removeBipedSlot
-	std::regex removeBipedSlot_regex("bipedSlotsToRemove\\s*=([^:]+)", regex::icase);
-	std::smatch removeBipedSlot_match;
-	std::regex_search(line, removeBipedSlot_match, removeBipedSlot_regex);
-	// extract the value after the equals sign
-	if (removeBipedSlot_match.empty() || removeBipedSlot_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string value = removeBipedSlot_match[1].str();
-		value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
-		std::stringstream ss(value);
-		std::string item;
-		while (std::getline(ss, item, ',')) {
-			l.removeBipedSlot.push_back(item);
-		}
-	}
+	extractMultiDataFormsFloat(line, "changeDamageTypes\\s*=([^:]+)", l.damageTypes, l.values1, l.values2);
 
-	// extract DamageTypes
-	std::regex DamageTypes_regex("changeDamageTypes\\s*=([^:]+)", regex::icase);
-	std::smatch DamageTypes_match;
-	std::regex_search(line, DamageTypes_match, DamageTypes_regex);
-	std::vector<std::string> DamageTypes_before_eq;
-	std::vector<float> DamageTypes_min_values;
-	std::vector<float> DamageTypes_max_values;
-	if (DamageTypes_match.empty() || DamageTypes_match[1].str().empty()) {
-		//empty
-	} else {
-		std::string DamageTypes_str = DamageTypes_match[1];
-		std::regex DamageTypes_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([\\d.]+)(?:\\s*~\\s*([\\d.]+))?", regex::icase);
-		std::sregex_iterator DamageTypes_iterator(DamageTypes_str.begin(), DamageTypes_str.end(), DamageTypes_list_regex);
-		std::sregex_iterator DamageTypes_end;
-		while (DamageTypes_iterator != DamageTypes_end) {
-			std::string avif = (*DamageTypes_iterator)[1].str();
-			avif.erase(avif.begin(), std::find_if_not(avif.begin(), avif.end(), ::isspace));
-			avif.erase(std::find_if_not(avif.rbegin(), avif.rend(), ::isspace).base(), avif.end());
+	extractMultiDataFormsFloat(line, "changeDamageTypesByMult\\s*=([^:]+)", l.damageTypesMult, l.valuesMult1, l.valuesMult2);
 
-			if (avif == "none") {
-				break;
-			}
+	extractValueString(line, "fullName\\s*=\\s*~([^~]+?)\\s*~", l.fullName);
 
-			DamageTypes_before_eq.push_back(avif);
-			DamageTypes_min_values.push_back(std::stof((*DamageTypes_iterator)[2]));
-			if ((*DamageTypes_iterator)[3] != "") {
-				DamageTypes_max_values.push_back(std::stof((*DamageTypes_iterator)[3]));
-			} else {
-				DamageTypes_max_values.push_back(std::stof((*DamageTypes_iterator)[2]));
-			}
-			std::string val1 = ((*DamageTypes_iterator)[2]);
-			std::string val2 = ((*DamageTypes_iterator)[3] != "") ? ((*DamageTypes_iterator)[3]) : ((*DamageTypes_iterator)[2]);
-			//logger::info(FMT_STRING("avif: {}"), avif);
-			//logger::info(FMT_STRING("value1: {}"), val1);
-			//logger::info(FMT_STRING("value2: {}"), val2);
-			++DamageTypes_iterator;
-		}
-		l.damageTypes = DamageTypes_before_eq;
-		l.values1 = DamageTypes_min_values;
-		l.values2 = DamageTypes_max_values;
-	}
+	extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
-	// extract fullName
-	std::regex fullName_regex("fullName\\s*=\\s*~([^~]+?)\\s*~");
-	std::smatch namematch;
-	std::regex_search(line, namematch, fullName_regex);
-	// extract the value after the equals sign
-	if (namematch.empty() || namematch[1].str().empty()) {
-		l.fullName = "none";
-	} else {
-		std::string namevalue = namematch[1].str();
-		namevalue.erase(namevalue.begin(), std::find_if_not(namevalue.begin(), namevalue.end(), ::isspace));
-		namevalue.erase(std::find_if_not(namevalue.rbegin(), namevalue.rend(), ::isspace).base(), namevalue.end());
-		l.fullName = namevalue;
-	}
-
-	// extract instanceNamingRule
-	std::regex instanceNamingRule_regex("instanceNamingRule\\s*=([^:]+)", regex::icase);
-	std::smatch instanceNamingRuleMatch;
-	std::regex_search(line, instanceNamingRuleMatch, instanceNamingRule_regex);
-	if (instanceNamingRuleMatch.empty() || instanceNamingRuleMatch[1].str().empty()) {
-		// An omitted field means "leave unchanged". The explicit value "none"
-		// remains available to clear the current naming rule.
-		l.instanceNamingRule.clear();
-	} else {
-		std::string value = instanceNamingRuleMatch[1].str();
-		value.erase(value.begin(), std::find_if_not(value.begin(), value.end(), ::isspace));
-		value.erase(std::find_if_not(value.rbegin(), value.rend(), ::isspace).base(), value.end());
-		l.instanceNamingRule = value;
-	}
+	extractValueString(line, "instanceNamingRule\\s*=([^:]+)", l.INRD);
 
 	return l;
 }
@@ -481,14 +80,27 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 {
 	logger::debug("processing patch instructions");
 	const auto dataHandler = RE::TESDataHandler::GetSingleton();
-	RE::BSTArray<RE::TESObjectARMO*> ArmorArray = dataHandler->GetFormArray<RE::TESObjectARMO>();
-	for (const auto& line : tokens) {
-		for (const auto& curobj : ArmorArray) {
-			bool found = false;
+	const auto& ArmorArray = dataHandler->GetFormArray<RE::TESObjectARMO>();
+		for (const auto& line : tokens) {
+			for (const auto& curobj : ArmorArray) {
+				if (!curobj) {
+					continue;
+				}
+				bool found = false;
 			bool keywordAnd = false;
 			bool keywordOr = false;
 			bool bipedSlotAnd = false;
 			bool bipedSlotOr = false;
+
+
+			if (curobj->IsDeleted()) {
+				continue;
+			}
+
+			if (!FormMatchesModNames(curobj, line.modNames)) {
+				continue;
+			}
+
 
 			if (!line.object.empty()) {
 				//logger::info("npc not empty");
@@ -513,7 +125,14 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 			if (!line.bipedSlot.empty()) {
 				//logger::info("keywords not empty");
 				for (const auto& bipedSlot : line.bipedSlot) {
-					int iSlot = std::stoi(bipedSlot);
+					int iSlot = 0;
+					try {
+						iSlot = std::stoi(bipedSlot);
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Armor {:08X}: invalid bipedSlot filter '{}': {}"), curobj->formID, bipedSlot, e.what());
+						bipedSlotAnd = false;
+						continue;
+					}
 
 					auto slot = getBipedObjectSlot(iSlot);
 					if (curobj->bipedModelData.bipedObjectSlots & static_cast<std::uint32_t>(slot)) {
@@ -533,7 +152,13 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 			if (!line.bipedSlotOr.empty()) {
 				//logger::info("keywords not empty");
 				for (const auto& bipedSlot : line.bipedSlotOr) {
-					int iSlot = std::stoi(bipedSlot);
+					int iSlot = 0;
+					try {
+						iSlot = std::stoi(bipedSlot);
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Armor {:08X}: invalid bipedSlotOr filter '{}': {}"), curobj->formID, bipedSlot, e.what());
+						continue;
+					}
 
 					auto slot = getBipedObjectSlot(iSlot);
 					if (curobj->bipedModelData.bipedObjectSlots & static_cast<std::uint32_t>(slot)) {
@@ -599,7 +224,7 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 			}
 
 			if ((!line.bipedSlot.empty() || !line.bipedSlotOr.empty()) && bipedSlotAnd && bipedSlotOr) {
-				logger::debug(FMT_STRING("Found a matching armor by bipedSlots. {:08X} {}"), curobj->formID, curobj->fullName);
+				//logger::debug(FMT_STRING("Found a matching armor by bipedSlots. {:08X} {}"), curobj->formID, curobj->fullName);
 				found = true;
 			}
 
@@ -608,7 +233,7 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 				found = true;
 			}
 
-			if (line.object.empty() && line.keywords.empty() && line.keywordsOr.empty() && line.bipedSlot.empty()) {
+			if (line.object.empty() && line.keywords.empty() && line.keywordsOr.empty() && line.bipedSlot.empty() && line.bipedSlotOr.empty()) {
 				found = true;
 			}
 
@@ -635,13 +260,19 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 
 			if (!line.bipedSlotExcluded.empty()) {
 				//logger::info("keywords not empty");
-				for (const auto& bipedSlot : line.bipedSlot) {
-					int iSlot = std::stoi(bipedSlot);
+				for (const auto& bipedSlot : line.bipedSlotExcluded) {
+					int iSlot = 0;
+					try {
+						iSlot = std::stoi(bipedSlot);
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Armor {:08X}: invalid bipedSlotExcluded filter '{}': {}"), curobj->formID, bipedSlot, e.what());
+						continue;
+					}
 
 					auto slot = getBipedObjectSlot(iSlot);
 					if (curobj->bipedModelData.bipedObjectSlots & static_cast<std::uint32_t>(slot)) {
 						found = false;
-						logger::debug(FMT_STRING("Armor Excluded has bipedSlot. {:08X} {}"), curobj->formID, curobj->fullName);
+						//logger::debug(FMT_STRING("Armor Excluded has bipedSlot. {:08X} {}"), curobj->formID, curobj->fullName);
 						break;
 					}
 					//logger::debug(FMT_STRING("KeywordAnd armor true"));
@@ -674,25 +305,31 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 
 			if (found && !line.damageResist.empty() && line.damageResist != "none") {
 				try {
-					curobj->armorData.rating = stof(line.damageResist);
-					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
-				} catch (const std::invalid_argument& e) {
-				}
-			}
-
-			if (found && !line.damageResistMult.empty() && line.damageResistMult != "none") {
-				try {
-					curobj->armorData.rating = curobj->armorData.rating * stof(line.damageResistMult);
-					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage by mult to {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
-				} catch (const std::invalid_argument& e) {
+					curobj->armorData.rating = checkedUnsignedValue<std::uint16_t>(std::stod(line.damageResist));
+					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage resist {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid damageResist value '{}': {}"), curobj->formID, line.damageResist, e.what());
 				}
 			}
 
 			if (found && !line.damageResistToAdd.empty() && line.damageResistToAdd != "none") {
 				try {
-					curobj->armorData.rating = curobj->armorData.rating + stof(line.damageResistToAdd);
-					logger::debug(FMT_STRING("armor formid: {:08X} {} changed damage by add to {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
-				} catch (const std::invalid_argument& e) {
+					const auto value = static_cast<double>(curobj->armorData.rating) + std::stod(line.damageResistToAdd);
+					curobj->armorData.rating = checkedUnsignedValue<std::uint16_t>(value);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} added damage resist {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
+				}
+				catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid damageResistToAdd value '{}': {}"), curobj->formID, line.damageResistToAdd, e.what());
+				}
+			}
+
+			if (found && !line.damageResistMult.empty() && line.damageResistMult != "none") {
+				try {
+					const auto value = static_cast<double>(curobj->armorData.rating) * std::stod(line.damageResistMult);
+					curobj->armorData.rating = checkedUnsignedValue<std::uint16_t>(value);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} changed(multiplied) damage resist {}"), curobj->formID, curobj->fullName, curobj->armorData.rating);
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid damageResistMult value '{}': {}"), curobj->formID, line.damageResistMult, e.what());
 				}
 			}
 
@@ -719,17 +356,20 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 
 			if (found && !line.health.empty() && line.health != "none") {
 				try {
-					curobj->armorData.health = stof(line.health);
+					curobj->armorData.health = checkedUnsignedValue<std::uint32_t>(std::stod(line.health));
 					logger::debug(FMT_STRING("armor formid: {:08X} {} changed health {}"), curobj->formID, curobj->fullName, curobj->armorData.health);
-				} catch (const std::invalid_argument& e) {
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid health value '{}': {}"), curobj->formID, line.health, e.what());
 				}
 			}
 
 			if (found && !line.healthMult.empty() && line.healthMult != "none") {
 				try {
-					curobj->armorData.health = curobj->armorData.health * stof(line.healthMult);
+					const auto value = static_cast<double>(curobj->armorData.health) * std::stod(line.healthMult);
+					curobj->armorData.health = checkedUnsignedValue<std::uint32_t>(value);
 					logger::debug(FMT_STRING("armor formid: {:08X} {} multiplied health {}"), curobj->formID, curobj->fullName, curobj->armorData.health);
-				} catch (const std::invalid_argument& e) {
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid healthMult value '{}': {}"), curobj->formID, line.healthMult, e.what());
 				}
 			}
 
@@ -737,7 +377,17 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 				try {
 					curobj->armorData.weight = stof(line.weight);
 					logger::debug(FMT_STRING("armor formid: {:08X} {} changed weight {}"), curobj->formID, curobj->fullName, curobj->armorData.weight);
-				} catch (const std::invalid_argument& e) {
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid weight value '{}': {}"), curobj->formID, line.weight, e.what());
+				}
+			}
+
+			if (found && !line.weightMult.empty() && line.weightMult != "none") {
+				try {
+					curobj->armorData.weight = curobj->armorData.weight * stof(line.weightMult);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} multiplied weight {}"), curobj->formID, curobj->fullName, curobj->armorData.weight);
+				} catch (const std::exception& e) {
+					logger::warn(FMT_STRING("Armor {:08X}: invalid weightMult value '{}': {}"), curobj->formID, line.weightMult, e.what());
 				}
 			}
 
@@ -796,24 +446,36 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 
 			if (found && !line.setBipedSlot.empty()) {
 				for (const auto& slotString : line.setBipedSlot) {
-					int slot = std::stoi(slotString);
-					curobj->bipedModelData.bipedObjectSlots |= static_cast<std::uint32_t>(getBipedObjectSlot(slot));
-					logger::debug(FMT_STRING("armor added bipedSlot to {} Slot {} and all its ARMAs"), curobj->fullName, slotString);
-					for (const auto& arma : curobj->modelArray) {
-						arma.armorAddon->bipedModelData.bipedObjectSlots |= static_cast<std::uint32_t>(getBipedObjectSlot(slot));
-						//logger::debug(FMT_STRING("Added bipedSlot to {:08X} Slot {}"), arma.armorAddon->formID, slotString);
+					try {
+						const int slot = std::stoi(slotString);
+						const auto slotMask = static_cast<std::uint32_t>(getBipedObjectSlot(slot));
+						curobj->bipedModelData.bipedObjectSlots |= slotMask;
+						logger::debug(FMT_STRING("armor added bipedSlot to {} Slot {} and all its ARMAs"), curobj->fullName, slotString);
+						for (const auto& arma : curobj->modelArray) {
+							if (arma.armorAddon) {
+								arma.armorAddon->bipedModelData.bipedObjectSlots |= slotMask;
+							}
+						}
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Armor {:08X}: invalid biped slot '{}': {}"), curobj->formID, slotString, e.what());
 					}
 				}
 			}
 
 			if (found && !line.removeBipedSlot.empty()) {
 				for (const auto& slotString : line.removeBipedSlot) {
-					int slot = std::stoi(slotString);
-					curobj->bipedModelData.bipedObjectSlots &= ~static_cast<std::uint32_t>(getBipedObjectSlot(slot));
-					logger::debug(FMT_STRING("armor removed bipedSlot to {} Slot {} and all its ARMAs"), curobj->fullName, slotString);
-					for (const auto& arma : curobj->modelArray) {
-						arma.armorAddon->bipedModelData.bipedObjectSlots &= ~static_cast<std::uint32_t>(getBipedObjectSlot(slot));
-						//logger::debug(FMT_STRING("Removed bipedSlot to {:08X} Slot {}"), arma.armorAddon->formID, slotString);
+					try {
+						const int slot = std::stoi(slotString);
+						const auto slotMask = static_cast<std::uint32_t>(getBipedObjectSlot(slot));
+						curobj->bipedModelData.bipedObjectSlots &= ~slotMask;
+						logger::debug(FMT_STRING("armor removed bipedSlot to {} Slot {} and all its ARMAs"), curobj->fullName, slotString);
+						for (const auto& arma : curobj->modelArray) {
+							if (arma.armorAddon) {
+								arma.armorAddon->bipedModelData.bipedObjectSlots &= ~slotMask;
+							}
+						}
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("Armor {:08X}: invalid biped slot '{}': {}"), curobj->formID, slotString, e.what());
 					}
 				}
 			}
@@ -829,8 +491,11 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 						//logger::info("avif valid!");
 						float finalValue = 0;
 
-						if (!line.values1.empty() && !line.values2.empty()) {
-							finalValue = floor((std::rand() / static_cast<float>(RAND_MAX)) * (line.values2[i] - line.values1[i] + 1) + line.values1[i]);
+						if (i < line.values1.size() && i < line.values2.size()) {
+							finalValue = getRandomFloat(line.values1[i], line.values2[i]);
+						} else {
+							logger::warn(FMT_STRING("Armor {:08X}: missing damageTypes value range for entry {}"), curobj->formID, i);
+							continue;
 						}
 
 						changeDamageType_Armor(curobj, (RE::BGSDamageType*)currentform, finalValue);
@@ -839,24 +504,46 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 				}
 			}
 
-			if (found && !line.fullName.empty() && line.fullName != "none") {
-				try {
-					logger::debug(FMT_STRING("armor formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
-					curobj->fullName = line.fullName;
-				} catch (const std::invalid_argument& e) {
+			if (found && !line.damageTypesMult.empty()) {
+				//logger::info("found! patching values");
+				//for (const auto& avifstring : line.avifs)
+				for (size_t i = 0; i < line.damageTypesMult.size(); i++) {
+					//logger::info("found! patching values");
+					RE::TESForm* currentform = nullptr;
+					std::string string_form = line.damageTypesMult[i];
+					currentform = GetFormFromIdentifier(string_form);
+					if (currentform && currentform->formType == RE::ENUM_FORM_ID::kDMGT) {
+						//logger::info("avif valid!");
+						float finalValue = 0;
+
+						if (i < line.valuesMult1.size() && i < line.valuesMult2.size()) {
+							finalValue = line.valuesMult1[i];
+						} else {
+							logger::warn(FMT_STRING("Armor {:08X}: missing damageTypesMult value for entry {}"), curobj->formID, i);
+							continue;
+						}
+
+						changeDamageTypeMult_Armor(curobj, (RE::BGSDamageType*)currentform, finalValue);
+						logger::debug(FMT_STRING("armor formid: {:08X} {} changed(multiplied) damage type {:08X} by {}"), curobj->formID, curobj->fullName, ((RE::BGSDamageType*)currentform)->formID, finalValue);
+					}
 				}
 			}
 
-			if (found && !line.instanceNamingRule.empty()) {
-				if (line.instanceNamingRule == "none") {
+			if (found && !line.fullName.empty() && line.fullName != "none") {
+				logger::debug(FMT_STRING("armor formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
+				curobj->fullName = line.fullName;
+			}
+
+			if (found && !line.INRD.empty()) {
+				RE::TESForm* currentform = nullptr;
+				std::string string_form = line.INRD;
+				currentform = GetFormFromIdentifier(string_form);
+				if (currentform && currentform->formType == RE::ENUM_FORM_ID::kINNR) {
+					curobj->instanceNamingRules = ((RE::BGSInstanceNamingRules*)currentform);
+					logger::debug(FMT_STRING("armor formid: {:08X} {} changed InstanceNamingRules to {:08X} "), curobj->formID, curobj->fullName, currentform->formID);
+				} else if (toLowerCase(line.INRD) == "null") {
 					curobj->instanceNamingRules = nullptr;
-					logger::debug(FMT_STRING("armor formid: {:08X} changed InstanceNamingRules to null (none)"), curobj->formID);
-				} else {
-					RE::TESForm* currentform = GetFormFromIdentifier(line.instanceNamingRule);
-					if (currentform && currentform->formType == RE::ENUM_FORM_ID::kINNR) {
-						curobj->instanceNamingRules = (RE::BGSInstanceNamingRules*)currentform;
-						logger::debug(FMT_STRING("armor formid: {:08X} {} changed InstanceNamingRules to {:08X}"), curobj->formID, curobj->fullName, currentform->formID);
-					}
+					logger::debug(FMT_STRING("armor formid: {:08X} changed InstanceNamingRules to null (none) "), curobj->formID);
 				}
 			}
 
@@ -864,7 +551,7 @@ void process_patch_instructions_armor(const std::list<patch_instruction_armor>& 
 	}
 }
 
-void* readConfig(const std::string& folder)
+void readConfig(const std::string& folder)
 {
 	char skipChar = '/';
 	std::string extension = ".ini";
@@ -886,9 +573,8 @@ void* readConfig(const std::string& folder)
 						directories.push_back(fullPath);
 					} else {
 						std::string fileName = ent->d_name;
-						size_t pos = fileName.find(extension);
-						if (pos != std::string::npos) {
-							fileName = fileName.substr(0, pos);
+						if (HasIniExtension(fileName)) {
+							fileName.resize(fileName.size() - 4);
 							const char* modname = fileName.c_str();
 
 							if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -908,7 +594,10 @@ void* readConfig(const std::string& folder)
 							std::list<patch_instruction_armor> tokens;
 							infile.open(fullPath);
 							while (std::getline(infile, line)) {
-								if (line.empty() || line[0] == skipChar) {
+								if (line.empty()) {
+									continue;
+								}
+								if (line[0] == skipChar) {
 									continue;
 								}
 
@@ -925,9 +614,8 @@ void* readConfig(const std::string& folder)
 		} else {
 			logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 		}
-		return nullptr;
 	}
-	return nullptr;
+	return;
 }
 
 

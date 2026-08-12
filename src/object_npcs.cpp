@@ -1,7 +1,21 @@
 #include "object_npcs.h"
 
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+
 namespace NPCS
 {
+	template <class T>
+	T checkedIntegralValue(double value)
+	{
+		if (!std::isfinite(value) || std::trunc(value) != value ||
+			value < static_cast<double>((std::numeric_limits<T>::lowest)()) ||
+			value > static_cast<double>((std::numeric_limits<T>::max)())) {
+			throw std::out_of_range("value is outside the target integer field range");
+		}
+		return static_cast<T>(value);
+	}
 
 
 	struct patch_instruction create_patch_instruction(const std::string& line)
@@ -9,309 +23,96 @@ namespace NPCS
 		patch_instruction l;
 		// extract npcs
 		// extract objects
-		std::regex objects_regex("filterByNpcs\\s*=([^:]+)", regex::icase);
-		std::smatch objects_match;
-		std::regex_search(line, objects_match, objects_regex);
-		std::vector<std::string> objects;
-		if (objects_match.empty() || objects_match[1].str().empty()) {
+
+		extractForms(line, "filterByNpcs\\s*=([^:]+)", l.object);
+
+
+		extractForms(line, "filterByNpcsExcluded\\s*=([^:]+)", l.objectExcluded);
+
+		extractForms(line, "filterByKeywords\\s*=([^:]+)", l.keywords);
+
+		extractForms(line, "filterByKeywordsOr\\s*=([^:]+)", l.keywordsOr);
+
+		extractForms(line, "filterByKeywordsExcluded\\s*=([^:]+)", l.keywordsExcluded);
+
+		extractForms(line, "filterByRaces\\s*=([^:]+)", l.races);
+
+
+		extractForms(line, "filterByClass\\s*=([^:]+)", l.filterClass);
+
+		extractForms(line, "filterByFactions\\s*=([^:]+)", l.filterFactions);
+
+		extractForms(line, "filterByFactionsOr\\s*=([^:]+)", l.filterFactionsOr);
+
+		extractForms(line, "filterByFactionsExcluded\\s*=([^:]+)", l.filterFactionsExcluded);
+
+		extractValueString(line, "setAutoCalcStats\\s*=([^:]+)", l.calcStats);
+
+		//// extract pclevelmult
+		//std::regex pclevelmultlist_regex("setPcLevelMult\\s*=([^:]+)", regex::icase);
+		//std::smatch pclevelmultlistmatch;
+		//std::regex_search(line, pclevelmultlistmatch, pclevelmultlist_regex);
+		//// extract the value after the equals sign
+		//if (pclevelmultlistmatch.empty() || pclevelmultlistmatch[1].str().empty()) {
+		//	l.kPCLevelMult = "none";
+		//} else {
+		//	std::string tempString = pclevelmultlistmatch[1].str();
+		//	tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
+		//	tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
+		//	l.kPCLevelMult = tempString;
+		//}
+
+		//
+		// extract pcMultFlag
+		std::regex pcMultFlag_regex("setPcLevelMult\\s*=([^:]+)", regex::icase);
+		std::smatch pcMultFlag_match;
+		regexSearchParameter(line, pcMultFlag_match, pcMultFlag_regex);
+		std::vector<std::string> pcMultFlag_before_eq;
+		std::vector<int> pcMultFlag_min_values;
+		std::vector<int> pcMultFlag_max_values;
+		if (pcMultFlag_match.empty() || pcMultFlag_match[1].str().empty()) {
 			//empty
 		} else {
-			std::string objects_str = objects_match[1];
-			std::regex objects_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objects_iterator(objects_str.begin(), objects_str.end(), objects_list_regex);
-			std::sregex_iterator objects_end;
-			while (objects_iterator != objects_end) {
-				std::string tempVar = (*objects_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (tempVar != "none") {
-					objects.push_back(tempVar);
+			std::string pcMultFlag_str = pcMultFlag_match[1];
+			std::regex pcMultFlag_list_regex("(\\w+)\\s*=\\s*([\\d.]+)(?:\\s*~\\s*([\\d.]+))?", regex::icase);
+			std::sregex_iterator pcMultFlag_iterator(pcMultFlag_str.begin(), pcMultFlag_str.end(), pcMultFlag_list_regex);
+			std::sregex_iterator pcMultFlag_end;
+			while (pcMultFlag_iterator != pcMultFlag_end) {
+				std::string avif = (*pcMultFlag_iterator)[1].str();
+				avif.erase(avif.begin(), std::find_if_not(avif.begin(), avif.end(), ::isspace));
+				avif.erase(std::find_if_not(avif.rbegin(), avif.rend(), ::isspace).base(), avif.end());
+
+				if (avif == "none") {
+					break;
 				}
-				++objects_iterator;
-			}
-			l.object = objects;
-		}
 
-		// extract objectsExcluded
-		std::regex objectsExcluded_regex("filterByNpcsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch objectsExcluded_match;
-		std::regex_search(line, objectsExcluded_match, objectsExcluded_regex);
-		std::vector<std::string> objectsExcluded;
-		if (objectsExcluded_match.empty() || objectsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string objectsExcluded_str = objectsExcluded_match[1];
-			std::regex objectsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator objectsExcluded_iterator(objectsExcluded_str.begin(), objectsExcluded_str.end(), objectsExcluded_list_regex);
-			std::sregex_iterator objectsExcluded_end;
-			while (objectsExcluded_iterator != objectsExcluded_end) {
-				std::string tempVar = (*objectsExcluded_iterator)[0].str();
-				tempVar.erase(tempVar.begin(), std::find_if_not(tempVar.begin(), tempVar.end(), ::isspace));
-				tempVar.erase(std::find_if_not(tempVar.rbegin(), tempVar.rend(), ::isspace).base(), tempVar.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (tempVar != "none") {
-					objectsExcluded.push_back(tempVar);
+				pcMultFlag_before_eq.push_back(avif);
+				pcMultFlag_min_values.push_back(std::stoi((*pcMultFlag_iterator)[2]));
+				if ((*pcMultFlag_iterator)[3] != "") {
+					pcMultFlag_max_values.push_back(std::stoi((*pcMultFlag_iterator)[3]));
+				} else {
+					pcMultFlag_max_values.push_back(std::stoi((*pcMultFlag_iterator)[2]));
 				}
-				++objectsExcluded_iterator;
+				std::string val1 = ((*pcMultFlag_iterator)[2]);
+				std::string val2 = ((*pcMultFlag_iterator)[3] != "") ? ((*pcMultFlag_iterator)[3]) : ((*pcMultFlag_iterator)[2]);
+				//logger::info(FMT_STRING("avif: {}"), avif);
+				//logger::info(FMT_STRING("value1: {}"), val1);
+				//logger::info(FMT_STRING("value2: {}"), val2);
+				++pcMultFlag_iterator;
 			}
-			l.objectExcluded = objectsExcluded;
+			l.pcMultFlag = pcMultFlag_before_eq;
+			l.PCvalues1 = pcMultFlag_min_values;
+			l.PCvalues2 = pcMultFlag_max_values;
 		}
 
-		// extract keywords
-		std::regex keywords_regex("filterByKeywords\\s*=([^:]+)", regex::icase);
-		std::smatch keywords_match;
-		std::regex_search(line, keywords_match, keywords_regex);
-		std::vector<std::string> keywords;
-		if (keywords_match.empty() || keywords_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywords_str = keywords_match[1];
-			std::regex keywords_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywords_iterator(keywords_str.begin(), keywords_str.end(), keywords_list_regex);
-			std::sregex_iterator keywords_end;
-			while (keywords_iterator != keywords_end) {
-				std::string keyword = (*keywords_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywords.push_back(keyword);
-				}
-				++keywords_iterator;
-			}
-			l.keywords = keywords;
-		}
+		extractValueString(line, "setEssential\\s*=([^:]+)", l.kEssential);
 
-		// extract keywords
-		std::regex keywordsOr_regex("filterByKeywordsOr\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsOr_match;
-		std::regex_search(line, keywordsOr_match, keywordsOr_regex);
-		std::vector<std::string> keywordsOr;
-		if (keywordsOr_match.empty() || keywordsOr_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsOr_str = keywordsOr_match[1];
-			std::regex keywordsOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsOr_iterator(keywordsOr_str.begin(), keywordsOr_str.end(), keywordsOr_list_regex);
-			std::sregex_iterator keywordsOr_end;
-			while (keywordsOr_iterator != keywordsOr_end) {
-				std::string keyword = (*keywordsOr_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsOr.push_back(keyword);
-				}
-				++keywordsOr_iterator;
-			}
-			l.keywordsOr = keywordsOr;
-		}
-
-		// extract keywords
-		std::regex keywordsExcluded_regex("filterByKeywordsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsExcluded_match;
-		std::regex_search(line, keywordsExcluded_match, keywordsExcluded_regex);
-		std::vector<std::string> keywordsExcluded;
-		if (keywordsExcluded_match.empty() || keywordsExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsExcluded_str = keywordsExcluded_match[1];
-			std::regex keywordsExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsExcluded_iterator(keywordsExcluded_str.begin(), keywordsExcluded_str.end(), keywordsExcluded_list_regex);
-			std::sregex_iterator keywordsExcluded_end;
-			while (keywordsExcluded_iterator != keywordsExcluded_end) {
-				std::string keyword = (*keywordsExcluded_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					keywordsExcluded.push_back(keyword);
-				}
-				++keywordsExcluded_iterator;
-			}
-			l.keywordsExcluded = keywordsExcluded;
-		}
-
-		// extract races
-		std::regex races_regex("filterByRaces\\s*=([^:]+)", regex::icase);
-		std::smatch races_match;
-		std::regex_search(line, races_match, races_regex);
-		std::vector<std::string> races;
-		if (races_match.empty() || races_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string races_str = races_match[1];
-			std::regex races_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator races_iterator(races_str.begin(), races_str.end(), races_list_regex);
-			std::sregex_iterator races_end;
-			while (races_iterator != races_end) {
-				std::string race = (*races_iterator)[0].str();
-				race.erase(race.begin(), std::find_if_not(race.begin(), race.end(), ::isspace));
-				race.erase(std::find_if_not(race.rbegin(), race.rend(), ::isspace).base(), race.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (race != "none") {
-					races.push_back(race);
-				}
-				++races_iterator;
-			}
-			l.races = races;
-		}
-
-				// extract Class
-		std::regex filterClass_regex("filterByClass\\s*=([^:]+)", regex::icase);
-		std::smatch filterClass_match;
-		std::regex_search(line, filterClass_match, filterClass_regex);
-		std::vector<std::string> Class;
-		if (filterClass_match.empty() || filterClass_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string Class_str = filterClass_match[1];
-			std::regex Class_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator Class_iterator(Class_str.begin(), Class_str.end(), Class_list_regex);
-			std::sregex_iterator Class_end;
-			while (Class_iterator != Class_end) {
-				std::string race = (*Class_iterator)[0].str();
-				race.erase(race.begin(), std::find_if_not(race.begin(), race.end(), ::isspace));
-				race.erase(std::find_if_not(race.rbegin(), race.rend(), ::isspace).base(), race.end());
-				//logger::info(FMT_STRING("Race: {}"), race);
-				if (race != "none") {
-					Class.push_back(race);
-				}
-				++Class_iterator;
-			}
-			l.filterClass = Class;
-		}
-
-				// extract Faction
-		std::regex FactionAnd_regex("filterByFactions\\s*=([^:]+)", regex::icase);
-		std::smatch FactionAnd_match;
-		std::regex_search(line, FactionAnd_match, FactionAnd_regex);
-		std::vector<std::string> Faction;
-		if (FactionAnd_match.empty() || FactionAnd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string Faction_str = FactionAnd_match[1];
-			std::regex Faction_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator Faction_iterator(Faction_str.begin(), Faction_str.end(), Faction_list_regex);
-			std::sregex_iterator Faction_end;
-			while (Faction_iterator != Faction_end) {
-				std::string keyword = (*Faction_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					Faction.push_back(keyword);
-				}
-				++Faction_iterator;
-			}
-			l.filterFactions = Faction;
-		}
-
-		// extract Faction
-		std::regex FactionOr_regex("filterByFactionsOr\\s*=([^:]+)", regex::icase);
-		std::smatch FactionOr_match;
-		std::regex_search(line, FactionOr_match, FactionOr_regex);
-		std::vector<std::string> FactionOr;
-		if (FactionOr_match.empty() || FactionOr_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string FactionOr_str = FactionOr_match[1];
-			std::regex FactionOr_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator FactionOr_iterator(FactionOr_str.begin(), FactionOr_str.end(), FactionOr_list_regex);
-			std::sregex_iterator FactionOr_end;
-			while (FactionOr_iterator != FactionOr_end) {
-				std::string keyword = (*FactionOr_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					FactionOr.push_back(keyword);
-				}
-				++FactionOr_iterator;
-			}
-			l.filterFactionsOr = FactionOr;
-		}
-
-		// extract Faction
-		std::regex FactionExcluded_regex("filterByFactionsExcluded\\s*=([^:]+)", regex::icase);
-		std::smatch FactionExcluded_match;
-		std::regex_search(line, FactionExcluded_match, FactionExcluded_regex);
-		std::vector<std::string> FactionExcluded;
-		if (FactionExcluded_match.empty() || FactionExcluded_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string FactionExcluded_str = FactionExcluded_match[1];
-			std::regex FactionExcluded_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator FactionExcluded_iterator(FactionExcluded_str.begin(), FactionExcluded_str.end(), FactionExcluded_list_regex);
-			std::sregex_iterator FactionExcluded_end;
-			while (FactionExcluded_iterator != FactionExcluded_end) {
-				std::string keyword = (*FactionExcluded_iterator)[0].str();
-				keyword.erase(keyword.begin(), std::find_if_not(keyword.begin(), keyword.end(), ::isspace));
-				keyword.erase(std::find_if_not(keyword.rbegin(), keyword.rend(), ::isspace).base(), keyword.end());
-				if (keyword != "none") {
-					FactionExcluded.push_back(keyword);
-				}
-				++FactionExcluded_iterator;
-			}
-			l.filterFactionsExcluded = FactionExcluded;
-		}
-
-		// extract autoCalcStats
-		std::regex list_regex("setAutoCalcStats\\s*=([^:]+)", regex::icase);
-		std::smatch listmatch;
-		std::regex_search(line, listmatch, list_regex);
-		// extract the value after the equals sign
-		if (listmatch.empty() || listmatch[1].str().empty()) {
-			l.calcStats = "none";
-		} else {
-			std::string tempString = listmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.calcStats = tempString;
-		}
-
-		// extract pclevelmult
-		std::regex pclevelmultlist_regex("setPcLevelMult\\s*=([^:]+)", regex::icase);
-		std::smatch pclevelmultlistmatch;
-		std::regex_search(line, pclevelmultlistmatch, pclevelmultlist_regex);
-		// extract the value after the equals sign
-		if (pclevelmultlistmatch.empty() || pclevelmultlistmatch[1].str().empty()) {
-			l.kPCLevelMult = "none";
-		} else {
-			std::string tempString = pclevelmultlistmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.kPCLevelMult = tempString;
-		}
-
-		// extract Essential
-		std::regex essentiallist_regex("setEssential\\s*=([^:]+)", regex::icase);
-		std::smatch essentiallistmatch;
-		std::regex_search(line, essentiallistmatch, essentiallist_regex);
-		// extract the value after the equals sign
-		if (essentiallistmatch.empty() || essentiallistmatch[1].str().empty()) {
-			l.kEssential = "none";
-		} else {
-			std::string tempString = essentiallistmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.kEssential = tempString;
-		}
-
-		// extract Protected
-		std::regex Protectedlist_regex("setProtected\\s*=([^:]+)", regex::icase);
-		std::smatch Protectedlistmatch;
-		std::regex_search(line, Protectedlistmatch, Protectedlist_regex);
-		// extract the value after the equals sign
-		if (Protectedlistmatch.empty() || Protectedlistmatch[1].str().empty()) {
-			l.kProtected = "none";
-		} else {
-			std::string tempString = Protectedlistmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.kProtected = tempString;
-		}
+		extractValueString(line, "setProtected\\s*=([^:]+)", l.kProtected);
 
 		// extract getLevelRange
 		std::regex levelRange_regex("levelRange\\s*=\\s*(\\d+)\\s*~\\s*(\\d+)", regex::icase);
 		std::smatch levelRange;
-		std::regex_search(line, levelRange, levelRange_regex);
+		regexSearchParameter(line, levelRange, levelRange_regex);
 		if (levelRange.empty() || levelRange.size() < 3) {
 			l.level_min = "none";
 			l.level_max = "none";
@@ -323,7 +124,7 @@ namespace NPCS
 		// extract avifs
 		std::regex avifs_regex("changeAVIFS\\s*=([^:]+)", regex::icase);
 		std::smatch avifs_match;
-		std::regex_search(line, avifs_match, avifs_regex);
+		regexSearchParameter(line, avifs_match, avifs_regex);
 		std::vector<std::string> avifs_before_eq;
 		std::vector<float> avifs_min_values;
 		std::vector<float> avifs_max_values;
@@ -331,7 +132,7 @@ namespace NPCS
 			//empty
 		} else {
 			std::string avifs_str = avifs_match[1];
-			std::regex avifs_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([\\d.]+)(?:\\s*~\\s*([\\d.]+))?", regex::icase);
+			std::regex avifs_list_regex("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*(-?[\\d.]+)(?:\\s*~\\s*(-?[\\d.]+))?", std::regex::icase);
 			std::sregex_iterator avifs_iterator(avifs_str.begin(), avifs_str.end(), avifs_list_regex);
 			std::sregex_iterator avifs_end;
 			while (avifs_iterator != avifs_end) {
@@ -365,7 +166,7 @@ namespace NPCS
 		// extract Faction
 		std::regex Faction_regex("factionsToAdd\\s*=([^:]+)", regex::icase);
 		std::smatch Faction_match;
-		std::regex_search(line, Faction_match, Faction_regex);
+		regexSearchParameter(line, Faction_match, Faction_regex);
 		std::vector<std::string> Faction_before_eq;
 		std::vector<float> Faction_min_values;
 		std::vector<float> Faction_max_values;
@@ -404,116 +205,24 @@ namespace NPCS
 			l.factionsToAddRank2 = Faction_max_values;
 		}
 
-		// extract keywordsToAdd
-		std::regex keywordsToAdd_regex("keywordsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToAdd_match;
-		std::regex_search(line, keywordsToAdd_match, keywordsToAdd_regex);
-		std::vector<std::string> keywordsToAdd;
-		if (keywordsToAdd_match.empty() || keywordsToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToAdd_str = keywordsToAdd_match[1];
-			std::regex keywordsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToAdd_iterator(keywordsToAdd_str.begin(), keywordsToAdd_str.end(), keywordsToAdd_list_regex);
-			std::sregex_iterator keywordsToAdd_end;
-			while (keywordsToAdd_iterator != keywordsToAdd_end) {
-				std::string keywordToAdd = (*keywordsToAdd_iterator)[0].str();
-				keywordToAdd.erase(keywordToAdd.begin(), std::find_if_not(keywordToAdd.begin(), keywordToAdd.end(), ::isspace));
-				keywordToAdd.erase(std::find_if_not(keywordToAdd.rbegin(), keywordToAdd.rend(), ::isspace).base(), keywordToAdd.end());
-				if (keywordToAdd != "none") {
-					//logger::info(FMT_STRING("keywordsToAdd: {}"), keywordToAdd);
-					keywordsToAdd.push_back(keywordToAdd);
-				}
-				++keywordsToAdd_iterator;
-			}
-			l.keywordsToAdd = keywordsToAdd;
-		}
 
-		// extract keywordsToRemove
-		std::regex keywordsToRemove_regex("keywordsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch keywordsToRemove_match;
-		std::regex_search(line, keywordsToRemove_match, keywordsToRemove_regex);
-		std::vector<std::string> keywordsToRemove;
-		if (keywordsToRemove_match.empty() || keywordsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string keywordsToRemove_str = keywordsToRemove_match[1];
-			std::regex keywordsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator keywordsToRemove_iterator(keywordsToRemove_str.begin(), keywordsToRemove_str.end(), keywordsToRemove_list_regex);
-			std::sregex_iterator keywordsToRemove_end;
-			while (keywordsToRemove_iterator != keywordsToRemove_end) {
-				std::string keywordToRemove = (*keywordsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("keywordsToRemove: {}"), keywordToRemove);
-					keywordsToRemove.push_back(keywordToRemove);
-				}
-				++keywordsToRemove_iterator;
-			}
-			l.keywordsToRemove = keywordsToRemove;
-		}
+		extractForms(line, "keywordsToAdd\\s*=([^:]+)", l.keywordsToAdd);
 
-		// extract factionsToRemove
-		std::regex factionsToRemove_regex("factionsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch factionsToRemove_match;
-		std::regex_search(line, factionsToRemove_match, factionsToRemove_regex);
-		std::vector<std::string> factionsToRemove;
-		if (factionsToRemove_match.empty() || factionsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string factionsToRemove_str = factionsToRemove_match[1];
-			std::regex factionsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator factionsToRemove_iterator(factionsToRemove_str.begin(), factionsToRemove_str.end(), factionsToRemove_list_regex);
-			std::sregex_iterator factionsToRemove_end;
-			while (factionsToRemove_iterator != factionsToRemove_end) {
-				std::string keywordToRemove = (*factionsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("factionsToRemove: {}"), keywordToRemove);
-					factionsToRemove.push_back(keywordToRemove);
-				}
-				++factionsToRemove_iterator;
-			}
-			l.factionsToRemove = factionsToRemove;
-		}
+		extractForms(line, "keywordsToRemove\\s*=([^:]+)", l.keywordsToRemove);
 
-		// extract perksToAdd
-		std::regex perksToAdd_regex("perksToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch perksToAdd_match;
-		std::regex_search(line, perksToAdd_match, perksToAdd_regex);
-		std::vector<std::string> perksToAdd;
-		if (perksToAdd_match.empty() || perksToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string perksToAdd_str = perksToAdd_match[1];
-			std::regex perksToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator perksToAdd_iterator(perksToAdd_str.begin(), perksToAdd_str.end(), perksToAdd_list_regex);
-			std::sregex_iterator perksToAdd_end;
-			while (perksToAdd_iterator != perksToAdd_end) {
-				std::string perkToAdd = (*perksToAdd_iterator)[0].str();
-				perkToAdd.erase(perkToAdd.begin(), std::find_if_not(perkToAdd.begin(), perkToAdd.end(), ::isspace));
-				perkToAdd.erase(std::find_if_not(perkToAdd.rbegin(), perkToAdd.rend(), ::isspace).base(), perkToAdd.end());
-				if ((*perksToAdd_iterator)[0].str() != "none") {
-					//logger::info(FMT_STRING("perksToAdd: {}"), perkToAdd);
-					perksToAdd.push_back(perkToAdd);
-				}
-				++perksToAdd_iterator;
-			}
-			l.perksToAdd = perksToAdd;
-		}
+		extractForms(line, "factionsToRemove\\s*=([^:]+)", l.factionsToRemove);
+
+		extractForms(line, "perksToAdd\\s*=([^:]+)", l.perksToAdd);
 
 		std::regex objectsToAdd_regex("objectsToAdd\\s*=([^:]+)", regex::icase);
 		std::smatch objectsToAdd_match;
-		std::regex_search(line, objectsToAdd_match, objectsToAdd_regex);
+		regexSearchParameter(line, objectsToAdd_match, objectsToAdd_regex);
 		std::vector<std::string> objectsToAdd;
 		if (objectsToAdd_match.empty() || objectsToAdd_match[1].str().empty()) {
 			//empty
 		} else {
 			std::string objectsToAdd_str = objectsToAdd_match[1];
 			std::regex pattern("([^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8})\\s*=\\s*([^,]+)", regex::icase);
-			std::smatch match;
 
 			auto begin = std::sregex_iterator(objectsToAdd_str.begin(), objectsToAdd_str.end(), pattern);
 			auto end = std::sregex_iterator();
@@ -526,229 +235,38 @@ namespace NPCS
 			}
 		}
 
-		// extract ObjectsToRemove
-		std::regex ObjectsToRemove_regex("ObjectsToRemove\\s*=([^:]+)", regex::icase);
-		std::smatch ObjectsToRemove_match;
-		std::regex_search(line, ObjectsToRemove_match, ObjectsToRemove_regex);
-		std::vector<std::string> ObjectsToRemove;
-		if (ObjectsToRemove_match.empty() || ObjectsToRemove_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string ObjectsToRemove_str = ObjectsToRemove_match[1];
-			std::regex ObjectsToRemove_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator ObjectsToRemove_iterator(ObjectsToRemove_str.begin(), ObjectsToRemove_str.end(), ObjectsToRemove_list_regex);
-			std::sregex_iterator ObjectsToRemove_end;
-			while (ObjectsToRemove_iterator != ObjectsToRemove_end) {
-				std::string keywordToRemove = (*ObjectsToRemove_iterator)[0].str();
-				keywordToRemove.erase(keywordToRemove.begin(), std::find_if_not(keywordToRemove.begin(), keywordToRemove.end(), ::isspace));
-				keywordToRemove.erase(std::find_if_not(keywordToRemove.rbegin(), keywordToRemove.rend(), ::isspace).base(), keywordToRemove.end());
-				if (keywordToRemove != "none") {
-					//logger::info(FMT_STRING("ObjectsToRemove: {}"), keywordToRemove);
-					ObjectsToRemove.push_back(keywordToRemove);
-				}
-				++ObjectsToRemove_iterator;
-			}
-			l.objectsToRemove = ObjectsToRemove;
-		}
+		extractForms(line, "ObjectsToRemove\\s*=([^:]+)", l.objectsToRemove);
 
-		// extract Outfit
-		std::regex Outfit_regex("outfitDefault\\s*=([^:]+)", regex::icase);
-		std::smatch outfitDefaultmatch;
-		std::regex_search(line, outfitDefaultmatch, Outfit_regex);
-		// extract the value after the equals sign
-		if (outfitDefaultmatch.empty() || outfitDefaultmatch[1].str().empty()) {
-			l.outfitDefault = "none";
-		} else {
-			std::string tempString = outfitDefaultmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.outfitDefault = tempString;
-		}
+		extractValueString(line, "outfitDefault\\s*=([^:]+)", l.outfitDefault);
 
-				// extract Outfit
-		std::regex OutfitSleep_regex("outfitSleep\\s*=([^:]+)", regex::icase);
-		std::smatch outfitSleepmatch;
-		std::regex_search(line, outfitSleepmatch, OutfitSleep_regex);
-		// extract the value after the equals sign
-		if (outfitSleepmatch.empty() || outfitSleepmatch[1].str().empty()) {
-			l.outfitSleep = "none";
-		} else {
-			std::string tempString = outfitSleepmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.outfitSleep = tempString;
-		}
+		extractValueString(line, "outfitSleep\\s*=([^:]+)", l.outfitSleep);
 
-		// extract deathItem
-		std::regex DeathItem_regex("deathItem\\s*=([^:]+)", regex::icase);
-		std::smatch DeathItemmatch;
-		std::regex_search(line, DeathItemmatch, DeathItem_regex);
-		// extract the value after the equals sign
-		if (DeathItemmatch.empty() || DeathItemmatch[1].str().empty()) {
-			l.deathItem = "none";
-		} else {
-			std::string tempString = DeathItemmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.deathItem = tempString;
-		}
+		extractValueString(line, "deathItem\\s*=([^:]+)", l.deathItem);
 
-		// extract Skin
-		std::regex skin_regex("skin\\s*=([^:]+)", regex::icase);
-		std::smatch skinmatch;
-		std::regex_search(line, skinmatch, skin_regex);
-		// extract the value after the equals sign
-		if (skinmatch.empty() || skinmatch[1].str().empty()) {
-			l.skin = "none";
-		} else {
-			std::string tempString = skinmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.skin = tempString;
-		}
+		extractValueString(line, "skin\\s*=([^:]+)", l.skin);
 
-		// extract Race
-		std::regex Race_regex("race\\s*=([^:]+)", regex::icase);
-		std::smatch Racematch;
-		std::regex_search(line, Racematch, Race_regex);
-		// extract the value after the equals sign
-		if (Racematch.empty() || Racematch[1].str().empty()) {
-			l.race = "none";
-		} else {
-			std::string tempString = Racematch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.race = tempString;
-		}
+		extractValueString(line, "race\\s*=([^:]+)", l.race);
 
-				// extract powerArmorStand
-		std::regex powerArmorStand_regex("powerArmorStand\\s*=([^:]+)", regex::icase);
-		std::smatch powerArmorStandmatch;
-		std::regex_search(line, powerArmorStandmatch, powerArmorStand_regex);
-		// extract the value after the equals sign
-		if (powerArmorStandmatch.empty() || powerArmorStandmatch[1].str().empty()) {
-			l.powerArmorStand = "none";
-		} else {
-			std::string tempString = powerArmorStandmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.powerArmorStand = tempString;
-		}
+		extractValueString(line, "powerArmorStand\\s*=([^:]+)", l.powerArmorStand);
 
-				// extract Class
-		std::regex Class_regex("class\\s*=([^:]+)", regex::icase);
-		std::smatch Classmatch;
-		std::regex_search(line, Classmatch, Class_regex);
-		// extract the value after the equals sign
-		if (Classmatch.empty() || Classmatch[1].str().empty()) {
-			l.Class = "none";
-		} else {
-			std::string tempString = Classmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.Class = tempString;
-		}
+		extractValueString(line, "class\\s*=([^:]+)", l.Class);
 
+		extractValueString(line, "xpValueOffset\\s*=([^:]+)", l.xpValueOffset);
 
-		// extract xpOffsetValue
-		std::regex xpOffsetValue_regex("xpValueOffset\\s*=([^:]+)", regex::icase);
-		std::smatch xpmatch;
-		std::regex_search(line, xpmatch, xpOffsetValue_regex);
-		// extract the value after the equals sign
-		if (xpmatch.empty() || xpmatch[1].str().empty()) {
-			l.xpValueOffset = "none";
-		} else {
-			std::string tempString = xpmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.xpValueOffset = tempString;
-		}
+		extractValueString(line, "level\\s*=([^:]+)", l.level);
 
-				// extract level
-		std::regex level_regex("level\\s*=([^:]+)", regex::icase);
-		std::smatch lvlmatch;
-		std::regex_search(line, lvlmatch, level_regex);
-		// extract the value after the equals sign
-		if (lvlmatch.empty() || lvlmatch[1].str().empty()) {
-			l.level = "none";
-		} else {
-			std::string tempString = lvlmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.level = tempString;
-		}
+		extractValueString(line, "calcLevelMin\\s*=([^:]+)", l.calcLevelMin);
 
-				// extract calcLevelMin
-		std::regex calcLevelMin_regex("calcLevelMin\\s*=([^:]+)", regex::icase);
-		std::smatch lminmatch;
-		std::regex_search(line, lminmatch, calcLevelMin_regex);
-		// extract the value after the equals sign
-		if (lminmatch.empty() || lminmatch[1].str().empty()) {
-			l.calcLevelMin = "none";
-		} else {
-			std::string tempString = lminmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.calcLevelMin = tempString;
-		}
+		extractValueString(line, "calcLevelMax\\s*=([^:]+)", l.calcLevelMax);
 
-				// extract calcLevelMax
-		std::regex calcLevelMax_regex("calcLevelMax\\s*=([^:]+)", regex::icase);
-		std::smatch lmaxmatch;
-		std::regex_search(line, lmaxmatch, calcLevelMax_regex);
-		// extract the value after the equals sign
-		if (lmaxmatch.empty() || lmaxmatch[1].str().empty()) {
-			l.calcLevelMax = "none";
-		} else {
-			std::string tempString = lmaxmatch[1].str();
-			tempString.erase(tempString.begin(), std::find_if_not(tempString.begin(), tempString.end(), ::isspace));
-			tempString.erase(std::find_if_not(tempString.rbegin(), tempString.rend(), ::isspace).base(), tempString.end());
-			l.calcLevelMax = tempString;
-		}
+		extractForms(line, "spellsToAdd\\s*=([^:]+)", l.spellsToAdd);
 
-				// extract spellsToAdd
-		std::regex spellsToAdd_regex("spellsToAdd\\s*=([^:]+)", regex::icase);
-		std::smatch spellsToAdd_match;
-		std::regex_search(line, spellsToAdd_match, spellsToAdd_regex);
-		std::vector<std::string> spellsToAdd;
-		if (spellsToAdd_match.empty() || spellsToAdd_match[1].str().empty()) {
-			//empty
-		} else {
-			std::string spellsToAdd_str = spellsToAdd_match[1];
-			std::regex spellsToAdd_list_regex("[^,]+[ ]*[|][ ]*[a-zA-Z0-9]{1,8}", regex::icase);
-			std::sregex_iterator spellsToAdd_iterator(spellsToAdd_str.begin(), spellsToAdd_str.end(), spellsToAdd_list_regex);
-			std::sregex_iterator spellsToAdd_end;
-			while (spellsToAdd_iterator != spellsToAdd_end) {
-				std::string spellToAdd = (*spellsToAdd_iterator)[0].str();
-				spellToAdd.erase(spellToAdd.begin(), std::find_if_not(spellToAdd.begin(), spellToAdd.end(), ::isspace));
-				spellToAdd.erase(std::find_if_not(spellToAdd.rbegin(), spellToAdd.rend(), ::isspace).base(), spellToAdd.end());
-				if ((*spellsToAdd_iterator)[0].str() != "none") {
-					//logger::info(FMT_STRING("spellsToAdd: {}"), spellToAdd);
-					spellsToAdd.push_back(spellToAdd);
-				}
-				++spellsToAdd_iterator;
-			}
-			l.spellsToAdd = spellsToAdd;
-		}
-
-		// extract isFemale
-		std::regex isFemale_regex("filterByGender\\s*=([^:]+)", regex::icase);
-		std::smatch isfemalematch;
-		std::regex_search(line, isfemalematch, isFemale_regex);
-		// extract the value after the equals sign
-		if (isfemalematch.empty() || isfemalematch[1].str().empty()) {
-			l.isFemale = "none";
-		} else {
-			std::string isfemalevalue = isfemalematch[1].str();
-			isfemalevalue.erase(isfemalevalue.begin(), std::find_if_not(isfemalevalue.begin(), isfemalevalue.end(), ::isspace));
-			isfemalevalue.erase(std::find_if_not(isfemalevalue.rbegin(), isfemalevalue.rend(), ::isspace).base(), isfemalevalue.end());
-			l.isFemale = isfemalevalue;
-		}
+		extractValueString(line, "filterByGender\\s*=([^:]+)", l.isFemale);
 
 		// extract fullName
 		std::regex fullName_regex("fullName\\s*=\\s*~([^~]+?)\\s*~");
 		std::smatch namematch;
-		std::regex_search(line, namematch, fullName_regex);
+		regexSearchParameter(line, namematch, fullName_regex);
 		// extract the value after the equals sign
 		if (namematch.empty() || namematch[1].str().empty()) {
 			l.fullName = "none";
@@ -759,6 +277,20 @@ namespace NPCS
 			l.fullName = namevalue;
 		}
 
+				// extract chanceRobCo
+		std::regex chanceRobCo_regex("chance\\s*=([^:]+)", regex::icase);
+		std::smatch match;
+		regexSearchParameter(line, match, chanceRobCo_regex);
+		// extract the value after the equals sign
+		if (match.empty() || match[1].str().empty()) {
+			l.chanceRobCo = "none";
+		} else {
+			std::string value = match[1].str();
+			value.erase(std::remove_if(value.begin(), value.end(), ::isspace), value.end());
+			l.chanceRobCo = value;
+		}
+
+		extractDataStrings(line, "filterByModNames\\s*=([^:]+)", l.modNames);
 
 		logger::debug(FMT_STRING("npcs: {} races: {}  keywords: {}  avifs: {} keywordsToAdd: {} perksToAdd {}"), l.object.size(), l.races.size(), l.keywords.size(), l.avifs.size(), l.keywordsToAdd.size(), l.perksToAdd.size());
 		//logger::info("returning patch instructions");
@@ -769,17 +301,29 @@ namespace NPCS
 	{
 		logger::debug("processing patch instructions");
 		const auto dataHandler = RE::TESDataHandler::GetSingleton();
-		RE::BSTArray<RE::TESNPC*> NPCArray = dataHandler->GetFormArray<RE::TESNPC>();
+	const auto& NPCArray = dataHandler->GetFormArray<RE::TESNPC>();
 
 		for (const auto& line : tokens) {
 			//logger::info("processing config line");
 			for (const auto& curobj : NPCArray) {
+				if (!curobj) {
+					continue;
+				}
 				bool found = false;
 				bool keywordAnd = false;
 				bool keywordOr = false;
 				bool factionAnd = false;
 				bool factionOr = false;
 				//curobj.
+
+				if (curobj->IsDeleted()) {
+					continue;
+				}
+
+				if (!FormMatchesModNames(curobj, line.modNames)) {
+					continue;
+				}
+
 				if (!line.object.empty()) {
 					//logger::info("npc not empty");
 					for (const auto& npcstring : line.object) {
@@ -811,7 +355,7 @@ namespace NPCS
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kCLAS) {
 							npc = (RE::TESClass*)currentform;
 
-							if (curobj->cl->formID == npc->formID) {
+							if (curobj->cl && curobj->cl->formID == npc->formID) {
 								found = true;
 								//logger::info("NPC found.");
 								break;
@@ -852,7 +396,7 @@ namespace NPCS
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kKYWD) {
 							keyword = (RE::BGSKeyword*)currentform;
 
-							if (curobj->HasKeyword(keyword) || curobj->baseTemplateForm == nullptr && curobj->formRace->HasKeyword(keyword)) {
+							if (curobj->HasKeyword(keyword) || (curobj->baseTemplateForm == nullptr && curobj->formRace && curobj->formRace->HasKeyword(keyword))) {
 								keywordAnd = true;
 							} else {
 								keywordAnd = false;
@@ -877,7 +421,7 @@ namespace NPCS
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kKYWD) {
 							keyword = (RE::BGSKeyword*)currentform;
 
-							if (curobj->HasKeyword(keyword) || curobj->baseTemplateForm == nullptr && curobj->formRace->HasKeyword(keyword) ) {
+							if (curobj->HasKeyword(keyword) || (curobj->baseTemplateForm == nullptr && curobj->formRace && curobj->formRace->HasKeyword(keyword))) {
 								keywordOr = true;
 								//logger::debug(FMT_STRING("KeywordOr has at least one keyword true {:08X} {:08X} race {:08X}"), curobj->formID, keyword->formID, curobj->formRace->formID);
 								//logger::info("Keyword found.");
@@ -992,7 +536,7 @@ namespace NPCS
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kKYWD) {
 							keyword = (RE::BGSKeyword*)currentform;
 
-							if (curobj->HasKeyword(keyword) || curobj->baseTemplateForm == nullptr && curobj->formRace->HasKeyword(keyword)) {
+							if (curobj->HasKeyword(keyword) || (curobj->baseTemplateForm == nullptr && curobj->formRace && curobj->formRace->HasKeyword(keyword))) {
 								found = false;
 								//logger::debug(FMT_STRING("KeywordExcluded has a keyword that is excluded.{:08X}"), keyword->formID);
 								//logger::info("Keyword found.");
@@ -1043,6 +587,19 @@ namespace NPCS
 					}
 				}
 
+				if (!line.chanceRobCo.empty() && line.chanceRobCo != "none") {
+					int random_number = getRandomNumber();
+					try {
+						const int chance = std::stoi(line.chanceRobCo);
+						if (random_number > chance) {
+							logger::debug("Skipped {:08X} by chance {} > {}", curobj->formID, random_number, chance);
+							found = false;
+						}
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("NPC {:08X}: invalid chance value '{}': {}"), curobj->formID, line.chanceRobCo, e.what());
+					}
+				}
+
 				if (found && ShouldSkipPatch("npc", curobj)) {
 					continue;
 				}
@@ -1057,13 +614,22 @@ namespace NPCS
 					}
 				}
 
-				if (found && !line.kPCLevelMult.empty() && line.kPCLevelMult != "none") {
-					if (line.kPCLevelMult == "yes" || line.kPCLevelMult == "true") {
+				if (found && !line.pcMultFlag.empty() && curobj->formID != 0x000007) {
+					if (toLowerCase(line.pcMultFlag[0]) == "yes" || toLowerCase(line.pcMultFlag[0]) == "true") {
 						curobj->actorData.actorBaseFlags.set(RE::ACTOR_BASE_DATA::Flag::kPCLevelMult);
 						logger::debug(FMT_STRING("Enabled kPCLevelMult for NPC {:08X} {}"), curobj->formID, curobj->fullName);
-					} else if (line.kPCLevelMult == "no" || line.kPCLevelMult == "false") {
+					} else if (curobj->actorData.actorBaseFlags & RE::ACTOR_BASE_DATA::Flag::kPCLevelMult && (toLowerCase(line.pcMultFlag[0]) == "no" || toLowerCase(line.pcMultFlag[0]) == "false")) {
 						curobj->actorData.actorBaseFlags.reset(RE::ACTOR_BASE_DATA::Flag::kPCLevelMult);
-						logger::debug(FMT_STRING("Disabled kPCLevelMult for NPC {:08X} {}"), curobj->formID, curobj->fullName);
+						if (!line.PCvalues1.empty()) {
+							try {
+								curobj->actorData.level = checkedIntegralValue<decltype(curobj->actorData.level)>(line.PCvalues1[0]);
+								logger::debug(FMT_STRING("Disabled kPCLevelMult for NPC {:08X} {} and set level to {}"), curobj->formID, curobj->fullName, line.PCvalues1[0]);
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("NPC {:08X}: invalid PC level '{}': {}"), curobj->formID, line.PCvalues1[0], e.what());
+							}
+						} else {
+							logger::debug(FMT_STRING("Disabled kPCLevelMult for NPC {:08X} {}"), curobj->formID, curobj->fullName);
+						}
 					}
 				}
 
@@ -1099,23 +665,27 @@ namespace NPCS
 							float finalValue = 0;
 
 							if (line.level_min == "none") {
-								if (!line.values1.empty() && !line.values2.empty()) {
-									unsigned seed = static_cast<unsigned>(std::time(nullptr)) + static_cast<unsigned>(std::clock());
-									std::srand(seed);
-									//int random_value = std::rand() % 501 + 500;
-									finalValue = floor((std::rand() / static_cast<float>(RAND_MAX)) * (line.values2[i] - line.values1[i] + 1) + line.values1[i]);
+								if (i < line.values1.size() && i < line.values2.size()) {
+									finalValue = getRandomFloat(line.values1[i], line.values2[i]);
 								}
 
-							} else if (line.level_min != "none" && line.level_max != "none" && line.level_min != line.level_max && line.values1[i] != line.values2[i]) {
-								int level_min = std::stoi(line.level_min);  // minimum level
-								int level_max = std::stoi(line.level_max);  // maximum level
+							} else if (line.level_min != "none" && line.level_max != "none" && line.level_min != line.level_max && i < line.values1.size() && i < line.values2.size() && line.values1[i] != line.values2[i]) {
+								int level_min = 0;  // minimum level
+								int level_max = 0;  // maximum level
+								try {
+									level_min = std::stoi(line.level_min);
+									level_max = std::stoi(line.level_max);
+								} catch (const std::exception& e) {
+									logger::warn(FMT_STRING("NPC {:08X}: invalid level range '{}~{}': {}"), curobj->formID, line.level_min, line.level_max, e.what());
+									continue;
+								}
 								if (level_min < level_max) {
-									int avif_min = line.values1[i];  // minimum health
-									int avif_max = line.values2[i];  // maximum health
+									const float avif_min = line.values1[i];
+									const float avif_max = line.values2[i];
 									//logger::info(FMT_STRING("lvl min {} level max {} avif min {} avif max {} "), level_min, level_max, line.values1[i], line.values2[i]);
 									// Calculate proportional increase
 									float health_increase = avif_max - avif_min;
-									float level_increase = level_max - level_min;
+									float level_increase = static_cast<float>(level_max - level_min);
 									float proportional_increase = health_increase / level_increase;
 
 									// Calculate health at level 50
@@ -1125,7 +695,7 @@ namespace NPCS
 									//logger::info(FMT_STRING("lvl min {} level max {} avif min {} avif max {} "), level_min, level_max, line.values1[i], line.values2[i]);
 
 									if (target_level >= level_min && target_level <= level_max) {
-										float level_difference = target_level - level_min;
+										float level_difference = static_cast<float>(target_level - level_min);
 										finalValue = avif_min + (level_difference * proportional_increase);
 									} else if (target_level < level_min) {
 										finalValue = avif_min;
@@ -1138,8 +708,11 @@ namespace NPCS
 								}
 								//logger::info(FMT_STRING("lvl min {} level max {} avif min {} avif max {} target_level {} healthinc {} levelinc {} propIncrease {} finalValue {}"), level_min, level_max, line.values1[i], line.values2[i], target_level,health_increase, level_increase, proportional_increase, finalValue);
 
-							} else {
+							} else if (i < line.values1.size()) {
 								finalValue = line.values1[i];
+							} else {
+								logger::warn(FMT_STRING("NPC {:08X}: missing AVIF value for entry {}"), curobj->formID, i);
+								continue;
 							}
 							
 							changeAVIF_NPC(curobj, (RE::ActorValueInfo*)currentform, finalValue);
@@ -1194,15 +767,19 @@ namespace NPCS
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kFACT) {
 							//logger::info("avif valid!");
-							float finalValue = 0;
-
-							if (!line.values1.empty() && !line.values2.empty()) {
-								//std::srand(std::time(nullptr));
-								finalValue = floor((std::rand() / static_cast<float>(RAND_MAX)) * (line.factionsToAddRank2[i] - line.factionsToAddRank1[i] + 1) + line.factionsToAddRank1[i]);
+							if (i >= line.factionsToAddRank1.size() || i >= line.factionsToAddRank2.size()) {
+								logger::warn(FMT_STRING("NPC {:08X}: missing faction rank range for entry {}"), curobj->formID, i);
+								continue;
 							}
-
-							VRCompat::AddFaction(curobj, (RE::TESFaction*)currentform, finalValue);
-							logger::debug(FMT_STRING("npc formid: {:08X} {} added faction {:08X} with rank {}"), curobj->formID, curobj->fullName, ((RE::TESFaction*)currentform)->formID, finalValue);
+							try {
+								const auto randomRank = std::floor((std::rand() / static_cast<double>(RAND_MAX)) *
+									(line.factionsToAddRank2[i] - line.factionsToAddRank1[i] + 1.0) + line.factionsToAddRank1[i]);
+								const auto rank = checkedIntegralValue<std::int8_t>(randomRank);
+								VRCompat::AddFaction(curobj, static_cast<RE::TESFaction*>(currentform), rank);
+								logger::debug(FMT_STRING("npc formid: {:08X} {} added faction {:08X} with rank {}"), curobj->formID, curobj->fullName, static_cast<RE::TESFaction*>(currentform)->formID, rank);
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("NPC {:08X}: invalid faction rank range for entry {}: {}"), curobj->formID, i, e.what());
+							}
 						}
 					}
 				}
@@ -1218,7 +795,7 @@ namespace NPCS
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform && currentform->formType == RE::ENUM_FORM_ID::kPERK) {
 							curobj->AddPerk((RE::BGSPerk*)currentform, 1);
-							logger::info(FMT_STRING("npc formid: {:08X} added perk {:08X} {} "), curobj->formID, ((RE::BGSPerk*)currentform)->formID, ((RE::BGSPerk*)currentform)->fullName);
+							logger::debug(FMT_STRING("npc formid: {:08X} added perk {:08X} {} "), curobj->formID, ((RE::BGSPerk*)currentform)->formID, ((RE::BGSPerk*)currentform)->fullName);
 						}
 
 					}
@@ -1306,30 +883,34 @@ namespace NPCS
 				}
 				if (found && !line.xpValueOffset.empty() && line.xpValueOffset != "none") {
 					try {
-						curobj->actorData.xpValueOffset = std::stof(line.xpValueOffset);
+						curobj->actorData.xpValueOffset = checkedIntegralValue<decltype(curobj->actorData.xpValueOffset)>(std::stod(line.xpValueOffset));
 						logger::debug(FMT_STRING("npc formid: {:08X} {} changed xpValueOffset to {}"), curobj->formID, curobj->fullName, curobj->actorData.xpValueOffset);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("NPC {:08X}: invalid xpValueOffset '{}': {}"), curobj->formID, line.xpValueOffset, e.what());
 					}
 				}
 				if (found && !line.level.empty() && line.level != "none") {
 					try {
-						curobj->actorData.level = std::stof(line.level);
+						curobj->actorData.level = checkedIntegralValue<decltype(curobj->actorData.level)>(std::stod(line.level));
 						logger::debug(FMT_STRING("npc formid: {:08X} {} changed level to {}"), curobj->formID, curobj->fullName, curobj->actorData.level);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("NPC {:08X}: invalid level '{}': {}"), curobj->formID, line.level, e.what());
 					}
 				}
 				if (found && !line.calcLevelMin.empty() && line.calcLevelMin != "none") {
 					try {
-						curobj->actorData.calcLevelMin = std::stof(line.calcLevelMin);
+						curobj->actorData.calcLevelMin = checkedIntegralValue<decltype(curobj->actorData.calcLevelMin)>(std::stod(line.calcLevelMin));
 						logger::debug(FMT_STRING("npc formid: {:08X} {} changed calcLevelMin to {}"), curobj->formID, curobj->fullName, curobj->actorData.calcLevelMin);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("NPC {:08X}: invalid calcLevelMin '{}': {}"), curobj->formID, line.calcLevelMin, e.what());
 					}
 				}
 				if (found && !line.calcLevelMax.empty() && line.calcLevelMax != "none") {
 					try {
-						curobj->actorData.calcLevelMax = std::stof(line.calcLevelMax);
+						curobj->actorData.calcLevelMax = checkedIntegralValue<decltype(curobj->actorData.calcLevelMax)>(std::stod(line.calcLevelMax));
 						logger::debug(FMT_STRING("npc formid: {:08X} {} changed calcLevelMax to {}"), curobj->formID, curobj->fullName, curobj->actorData.calcLevelMax);
-					} catch (const std::invalid_argument& e) {
+					} catch (const std::exception& e) {
+						logger::warn(FMT_STRING("NPC {:08X}: invalid calcLevelMax '{}': {}"), curobj->formID, line.calcLevelMax, e.what());
 					}
 				}
 
@@ -1348,11 +929,8 @@ namespace NPCS
 				}
 
 				if (found && !line.fullName.empty() && line.fullName != "none") {
-					try {
-						logger::debug(FMT_STRING("npc formid: {:08X} {} changed fullname to "), curobj->formID, curobj->fullName, line.fullName);
-						curobj->fullName = line.fullName;
-					} catch (const std::invalid_argument& e) {
-					}
+					logger::debug(FMT_STRING("npc formid: {:08X} {} changed fullname to {}"), curobj->formID, curobj->fullName, line.fullName);
+					curobj->fullName = line.fullName;
 				}
 
 				if (found && !line.objectsToAdd.empty()) {
@@ -1363,11 +941,17 @@ namespace NPCS
 						std::string string_form = line.objectsToAdd[i];
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform) {
-
-							RE::TESBoundObject* bo = (RE::TESBoundObject*)currentform;
-							if (bo) {
-								curobj->AddObject(bo, std::stoi(  line.objectsToAddValue[i]), nullptr  );
-								logger::info(FMT_STRING("npc formid: {:08X} added object {:08X} {} "), curobj->formID, ((RE::TESBoundObject*)currentform)->formID, line.objectsToAddValue[i]);
+							auto* bo = currentform->As<RE::TESBoundObject>();
+							if (!bo || i >= line.objectsToAddValue.size()) {
+								logger::warn(FMT_STRING("NPC {:08X}: invalid objectsToAdd entry '{}'"), curobj->formID, string_form);
+								continue;
+							}
+							try {
+								const int count = std::stoi(line.objectsToAddValue[i]);
+								curobj->AddObject(bo, count, nullptr);
+								logger::debug(FMT_STRING("npc formid: {:08X} added object {:08X} {} "), curobj->formID, bo->formID, line.objectsToAddValue[i]);
+							} catch (const std::exception& e) {
+								logger::warn(FMT_STRING("NPC {:08X}: invalid object count '{}' for '{}': {}"), curobj->formID, line.objectsToAddValue[i], string_form, e.what());
 							}
 						}
 					}
@@ -1381,10 +965,12 @@ namespace NPCS
 						std::string string_form = line.objectsToRemove[i];
 						currentform = GetFormFromIdentifier(string_form);
 						if (currentform) {
-							RE::TESBoundObject* bo = (RE::TESBoundObject*)currentform;
+							auto* bo = currentform->As<RE::TESBoundObject>();
 							if (bo) {
 								VRCompat::RemoveObject(curobj, bo);
-								logger::info(FMT_STRING("npc formid: {:08X} removed object {:08X} "), curobj->formID, ((RE::TESBoundObject*)currentform)->formID);
+								logger::info(FMT_STRING("npc formid: {:08X} removed object {:08X} "), curobj->formID, bo->formID);
+							} else {
+								logger::warn(FMT_STRING("NPC {:08X}: objectsToRemove form '{}' is not a bound object"), curobj->formID, string_form);
 							}
 						}
 					}
@@ -1410,7 +996,7 @@ namespace NPCS
 		}
 	}
 
-	void* readConfig(const std::string& folder)
+	void readConfig(const std::string& folder)
 	{
 		char skipChar = '/';
 		std::string extension = ".ini";
@@ -1432,9 +1018,8 @@ namespace NPCS
 							directories.push_back(fullPath);
 						} else {
 							std::string fileName = ent->d_name;
-							size_t pos = fileName.find(extension);
-							if (pos != std::string::npos) {
-								fileName = fileName.substr(0, pos);
+							if (HasIniExtension(fileName)) {
+								fileName.resize(fileName.size() - 4);
 								const char* modname = fileName.c_str();
 
 								if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
@@ -1454,7 +1039,10 @@ namespace NPCS
 								std::list<patch_instruction> tokens;
 								infile.open(fullPath);
 								while (std::getline(infile, line)) {
-									if (line.empty() || line[0] == skipChar) {
+									if (line.empty()) {
+										continue;
+									}
+									if (line[0] == skipChar) {
 										continue;
 									}
 
@@ -1472,59 +1060,7 @@ namespace NPCS
 				logger::info(FMT_STRING("Couldn't open directory {}."), currentFolder.c_str());
 			}
 		}
-		return nullptr;
+		return;
 	}
 
-	/*void* readConfigNPC()
-	{
-		logger::debug("Reading config and create forms...");
-
-		char skipChar = '/';
-		std::string extension = ".ini";
-		DIR* dir;
-		struct dirent* ent;
-		std::string folder = ".\\Data\\F4se\\Plugins\\RobCo_Patcher\\npc\\";
-
-		if ((dir = opendir(folder.c_str())) != NULL) {
-			while ((ent = readdir(dir)) != NULL) {
-				if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-					logger::info("*********************************");
-					logger::info(FMT_STRING("Config file {} found."), ent->d_name);
-					logger::info("*********************************");
-				}
-				std::string fileName = ent->d_name;
-				size_t pos = fileName.find(extension);
-				if (pos != std::string::npos) {
-					fileName = fileName.substr(0, pos);
-					const char* modname = fileName.c_str();
-
-					if ((strstr(modname, ".esp") != nullptr || strstr(modname, ".esl") != nullptr || strstr(modname, ".esm") != nullptr)) {
-						if (!IsPluginInstalled(modname)) {
-							logger::info(FMT_STRING("{} not found or is not a valid plugin file, skipping config file."), modname);
-							continue;
-						}
-					}
-
-					std::string line;
-					std::ifstream infile;
-					std::list<patch_instruction_npc> tokens;
-					infile.open(folder + ent->d_name);
-					while (std::getline(infile, line)) {
-						if (line.empty() || line[0] == skipChar) {
-							continue;
-						}
-
-						tokens.push_back(create_patch_instruction_npc(line));
-					}
-					infile.close();
-					process_patch_instructions_npc(tokens);
-				}
-			}
-			closedir(dir);
-		} else {
-			logger::info("Couldn't find npc dir.");
-		}
-
-		return 0;
-	}*/
 }

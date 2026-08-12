@@ -23,14 +23,14 @@ namespace COBJ
 		std::string workbenchKeyword;
 		std::vector<std::string> categoryKeywordToAdd;
 		std::vector<std::string> categoryKeywordToRemove;
-
+		std::vector<std::string> modNames;
 
 	};
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
-	void* patch(COBJ::line_content line, RE::BGSConstructibleObject* curobj);
+	void readConfig(const std::string& folder);
+	void patch(const COBJ::line_content& line, RE::BGSConstructibleObject* curobj);
 }
 
 #endif

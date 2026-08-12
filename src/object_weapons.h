@@ -24,21 +24,23 @@ struct patch_instruction
 	std::vector<std::string> keywords;
 	std::vector<std::string> keywordsOr;
 	std::vector<std::string> keywordsExcluded;
-
+	std::vector<std::string> modNames;
 	std::vector<std::string> damageTypes;
 	std::vector<float> values1;
 	std::vector<float> values2;
 	std::string attackDamage;
 	std::string attackDamageMult;
 	std::string attackDamageToAdd;
-	std::string maxRange;
-	std::string minRange;
+
 	std::string weight;
+	std::string INRD;
 	std::string capsvalue;
 	std::string actionpointcost;
 	std::string hittype;
 	std::string soundlevel;
 	std::string bashDamage;
+	std::string minRange;
+	std::string maxRange;
 	std::string outOfRangeDamageMult;
 	std::vector<std::string> keywordsToAdd;
 	std::vector<std::string> keywordsToRemove;
@@ -70,8 +72,8 @@ struct patch_instruction create_patch_instructions(const std::string& line);
 
 void process_patch_instructions(const std::list<patch_instruction>& tokens);
 
-void* readConfig(const std::string& folder);
-void* patch(WEAPONS::patch_instruction line, RE::TESObjectWEAP* curobj);
+void readConfig(const std::string& folder);
+void patch(const WEAPONS::patch_instruction& line, RE::TESObjectWEAP* curobj);
 }
 
 #endif

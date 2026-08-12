@@ -22,12 +22,13 @@ namespace FORMLIST
 		std::vector<std::string> objectsRemove;
 		std::vector<std::string> formsToReplace;
 		std::vector<std::string> formsToReplaceWith;
+		std::vector<std::string> modNames;
 
 	};
 
 	struct line_content create_patch_instruction(const std::string& line);
 	void process_patch_instructions(const std::list<line_content>& tokens);
-	void* readConfig(const std::string& folder);
+	void readConfig(const std::string& folder);
 }
 
 #endif

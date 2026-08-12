@@ -278,6 +278,16 @@ namespace PATCH
 		}
 	}
 
+	void ReportState::RecordPatchCall(const std::string& category, bool dryRun)
+	{
+		auto& stats = MutableStats(category);
+		if (dryRun) {
+			++stats.wouldPatchRecords;
+		} else {
+			++stats.patchCalls;
+		}
+	}
+
 	void ReportState::RecordMutation(
 		const std::string& category,
 		const std::string& target,
@@ -349,6 +359,8 @@ namespace PATCH
 				   << " rules=" << stats.rulesParsed
 				   << " invalid=" << stats.invalidRules
 				   << " matched=" << stats.matchedRecords
+				   << " patchCalls=" << stats.patchCalls
+				   << " wouldPatch=" << stats.wouldPatchRecords
 				   << " applied=" << stats.appliedMutations
 				   << " wouldApply=" << stats.wouldApplyMutations
 				   << " skipped=" << stats.skippedMutations
@@ -489,6 +501,11 @@ namespace PATCH
 	void RecordMatch(const std::string& category, const std::string& target)
 	{
 		Report().RecordMatch(category, target);
+	}
+
+	void RecordPatchCall(const std::string& category)
+	{
+		Report().RecordPatchCall(category, IsDryRun());
 	}
 
 	void RecordMutation(

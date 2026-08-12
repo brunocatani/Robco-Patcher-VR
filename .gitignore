@@ -1,5 +1,6 @@
 # Build directories
 build/
+build-fast/
 out/
 cmake-build-*/
 
@@ -61,6 +62,7 @@ package/
 *.orig
 
 # Local environment/config
+CMakeUserPresets.json
 .env
 .env.*
 !.env.example
