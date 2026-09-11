@@ -1,21 +1,35 @@
 # Changelog
 
-## Unreleased - Major Update
+## 1.2.0 - 2026-09-11
 
-- Ingestibles can now safely add, remove, clear, and modify magic effects.
-- OMOD property additions, changes, and removals now function reliably in VR.
-- Leveled-list additions, removals, replacements, and bulk edits are now reliable.
-- Projectiles and explosions can now be patched across their full supported property sets.
-- Weapon, armor, and ammo values can be set, added to, or multiplied without overflow corruption.
-- Constructible-object categories, workbenches, form lists, containers, and outfits patch correctly.
-- Dry-run mode now previews all intended patches without changing game records.
-- A malformed rule or failed category no longer prevents the remaining patches from running.
-- Failed patches preserve the original game data instead of leaving partially modified records.
+### Patching improvements
+
+- Reworked ingestible magic-effect additions, removals, clearing, and modification with VR engine allocation and cleanup.
+- Reworked OMOD property additions, changes, and removals for VR property storage.
+- Fixed leveled-list additions, removals, replacements, and bulk edits, including preservation of entry data.
+- Expanded projectile and explosion patching across their supported property sets.
+- Added checked numeric updates for weapon, armor, and ammo values to reject invalid or overflowing results.
+- Corrected constructible-object categories and workbenches, form lists, containers, and outfits.
+- Improved mutation failure handling to preserve existing data when a replacement cannot be completed.
+
+### Diagnostics and compatibility
+
+- Reworked dry-run handling so enabled patch rules can be previewed without applying their record changes.
+- Isolated rule and category failures so an error does not abort every remaining patch category.
+- Added runtime and live engine-signature checks around VR-specific engine adapters.
+- Accept Daytripper's ESL provider as either `Daytripper4.dll` or `falloutvresl.dll` and validate its compiled-file collection before using it.
+- Reject missing, invalid, or ambiguous ESL providers; light-plugin lookups are skipped when no usable provider is available.
+- Prefer `Documents\My Games\Fallout4VR\RobCo_Patcher.ini`, with the legacy `Data\F4SE\Plugins\RobCo_Patcher.ini` used when the preferred file is absent.
+- Document the `[Patcher]` category switches, diagnostics, installation, and upgrade procedure in the README.
+
+### Known limitation
+
+- Reference InstanceData refresh (`iEnableREFRCreateNewInstanceData`) is disabled in this VR implementation. A request for it is logged and skipped to preserve existing owned extra data.
 
 ## 1.1.0 - 2026-08-04
 
 - Added aim-model patching. Enable it with `iEnableAimModelPatching=1` under
-  `[Settings]`; rules are read from
+  `[Patcher]`; rules are read from
   `Data\F4SE\Plugins\RobCo_Patcher\aimModel\`.
 - Added ammo `value` and `valueMult` patch fields.
 - Added armor `damageResistMult`, `damageResistToAdd`, `healthMult`, and

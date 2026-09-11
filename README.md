@@ -2,22 +2,121 @@
 
 ![RobCo Patcher VR](assets/robco.png)
 
-RobCo Patcher is a patcher which allows mod authors and users to modify game data without the use of plugins.
-You can modify ammos, NPCs, races, weapons, and more.
+RobCo Patcher VR lets mod authors and users modify Fallout 4 VR game records through INI rules, without creating an ESP or ESM patch. It is a native F4SEVR plugin for **Fallout 4 VR 1.2.72.0**.
 
-## Original Mod
+**Current release: 1.2.0.** Download the installable ZIP from [GitHub Releases](https://github.com/brunocatani/Robco-Patcher-VR/releases/tag/v1.2.0). See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
-This port is a work converting everything possible to make it compatible with Fallout 4 VR 1.2.72.0.
+## What's new in 1.2.0
 
-There may still be a lot of bugs. In that case, post in the forum and I will investigate it.
+- Reworked VR patching for ingestible effects, object modifications (OMODs), leveled lists, projectiles, and explosions.
+- Checked numeric updates for weapons, armor, and ammunition, plus fixes for crafting records, form lists, containers, and outfits.
+- Improved dry-run previews, error isolation, and preservation of existing data when a replacement fails.
+- Daytripper ESL provider detection accepts both `Daytripper4.dll` and `falloutvresl.dll`, with validation before use.
 
-Any issues and bugs with this mod should not be posted to the original RobCo Patcher page, and please do not bother Zzyxzz, the original creator of the mod.
+The release also includes the aim-model patching and expanded weapon, armor, and ammo fields introduced in 1.1.0.
 
-## Known Bugs
+## Requirements
 
-This mod does not work fully with the current version of Daytripper's SmallFileLoader (ESL Light Plugins loader), as it has loading priority issues with this version of RobCo that I am attempting to fix.
+- Fallout 4 VR, executable version **1.2.72.0**.
+- **F4SEVR 0.6.21**.
+- **VR Address Library for F4SEVR**, with the address database for Fallout 4 VR 1.2.72.0.
+- For rules targeting ESL or ESL-flagged plugins: a compatible **Daytripper / Fallout VR ESL Support** provider exposing `GetCompiledFileCollectionExtern`.
 
-The mod works with ESL and ESL-flagged ESPs, but some mods may not work correctly. I will update here as soon as I can.
+This DLL is for Fallout 4 VR. Desktop Fallout 4 and its next-generation executable are unsupported.
+
+## Installation and updates
+
+1. Install the requirements and launch the game through F4SEVR.
+2. Install `RobCo_Patcher_VR-v1.2.0.zip` with your mod manager. If prompted to select the game-data directory, choose the archive's `Data` folder. For manual installation, merge that folder into the game's `Data` folder.
+3. Confirm the installed plugin path is `Data\F4SE\Plugins\RobCo_Patcher.dll`.
+4. Keep your patch-rule mods installed. Their rules belong under `Data\F4SE\Plugins\RobCo_Patcher\`, in the appropriate category folders.
+5. Configure the category switches described below, then restart the game to apply the rules.
+
+When upgrading, replace the old DLL and preserve your existing settings and patch-rule files. The release archive contains the DLL, README, changelog, license, and project image; it does not supply or overwrite runtime INIs or patch rules. The GitHub ZIP is also the package intended for Nexus distribution.
+
+## Configuration
+
+The preferred settings file is:
+
+```text
+Documents\My Games\Fallout4VR\RobCo_Patcher.ini
+```
+
+If that file is absent, an existing `Data\F4SE\Plugins\RobCo_Patcher.ini` is used as a legacy fallback. If both exist, the Documents file takes precedence; the files are not merged. Move an existing legacy settings file to the preferred location if desired, preserving its values.
+
+For a new installation, create the settings file and enable the categories your patch rules use under **`[Patcher]`**. Missing switches default to `0` (disabled), and the plugin does not create this file automatically. This example enables all supported categories:
+
+```ini
+[Patcher]
+iEnableAmmoPatching=1
+iEnableWeaponPatching=1
+iEnableAimModelPatching=1
+iEnableRacePatching=1
+iEnableNPCPatching=1
+iEnableArmorPatching=1
+iEnableFormlistPatching=1
+iEnableConstructibleObjectPatching=1
+iEnableLeveledListPatching=1
+iEnableObjectModificationPatching=1
+iEnableMiscPatching=1
+iEnableIngestiblePatching=1
+iEnableProjectilePatching=1
+iEnableExplosionPatching=1
+iEnableOutfitPatching=1
+```
+
+Rule folders beneath `Data\F4SE\Plugins\RobCo_Patcher\` are:
+
+| Record category | Folder |
+| --- | --- |
+| Ammunition | `ammo` |
+| Weapons | `weapon` |
+| Aim models | `aimModel` |
+| Races | `race` |
+| NPCs | `npc` |
+| Armor | `armor` |
+| Form lists | `formList` |
+| Constructible objects | `constructibleObject` |
+| Leveled lists | `leveledList` |
+| Object modifications | `objectModification` |
+| Miscellaneous objects | `misc` |
+| Ingestibles | `ingestible` |
+| Projectiles | `projectile` |
+| Explosions | `explosion` |
+| Outfits | `outfit` |
+
+## Diagnostics
+
+Add these optional sections to the same runtime INI when investigating a patch:
+
+```ini
+[Log]
+iEnablelog=0
+
+[Diagnostics]
+iEnableDiagnostics=0
+iWritePatchReport=0
+iEnableDryRun=0
+iStrictConfigValidation=0
+iLogMatchedRecords=0
+iReportInstanceData=0
+```
+
+Set `iEnableDiagnostics=1`, `iWritePatchReport=1`, and `iEnableDryRun=1` to preview enabled patch rules without applying their record changes. Restore `iEnableDryRun=0` and restart the game when you want the changes applied. Set `iEnablelog=1` for debug logging.
+
+The plugin log is `Documents\My Games\Fallout4VR\F4SE\RobCo_Patcher.log`. When enabled, the patch report is written alongside it as `RobCo_Patcher.report.txt`.
+
+## Compatibility and known limitations
+
+- ESL resolution requires a loaded, compatible Daytripper provider. The patcher accepts either supported DLL name, but refuses two distinct providers loaded together. Missing exports or invalid plugin collections disable light-plugin resolution and produce a log entry. Detection of both filenames does not establish compatibility with every provider version or mod list.
+- Reference InstanceData refresh (`iEnableREFRCreateNewInstanceData` under `[Features]`) is disabled because this VR implementation has no verified transactional replacement API. Requests are logged and skipped to preserve existing owned extra data.
+- Patch behavior depends on the supplied rules and loaded records. Include the relevant rules and the current plugin log when reporting a problem.
+
+## Support and original mod
+
+This is a VR port of RobCo Patcher by **Zzyxzz**. Report VR-port issues on the VR mod's forum or the [VR repository issue tracker](https://github.com/brunocatani/Robco-Patcher-VR/issues).
+
+Please do not report VR-port bugs on the original RobCo Patcher page or ask its original author to troubleshoot this port.
 
 ## Credits
 
