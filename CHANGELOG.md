@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2026-09-11
+
+- Moved the runtime INI to `Documents\My Games\Fallout4VR\Mods_Config\RobCo_Patcher\RobCo_Patcher.ini`.
+- Removed the old Documents-root and `Data\F4SE\Plugins` settings locations. Move an existing INI to the new folder when upgrading; its values do not need to change.
+- Added a warning when the settings file is missing. Category switches continue to default to disabled until configured.
+
 ## 1.2.0 - 2026-09-11
 
 ### Patching improvements

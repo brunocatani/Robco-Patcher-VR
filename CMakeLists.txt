@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 # ---- Project Info ----
 set(NAME "RobCo_Patcher")
-set(VERSION 1.2.0)
+set(VERSION 1.2.1)
 
 message(">>> Start build for '${NAME}' v${VERSION}")
 

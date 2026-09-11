@@ -4,7 +4,11 @@
 
 RobCo Patcher VR lets mod authors and users modify Fallout 4 VR game records through INI rules, without creating an ESP or ESM patch. It is a native F4SEVR plugin for **Fallout 4 VR 1.2.72.0**.
 
-**Current release: 1.2.0.** Download the installable ZIP from [GitHub Releases](https://github.com/brunocatani/Robco-Patcher-VR/releases/tag/v1.2.0). See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+**Current release: 1.2.1.** Download the installable ZIP from [GitHub Releases](https://github.com/brunocatani/Robco-Patcher-VR/releases/tag/v1.2.1). See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+## What's new in 1.2.1
+
+Runtime settings now live exclusively at `Documents\My Games\Fallout4VR\Mods_Config\RobCo_Patcher\RobCo_Patcher.ini`. Move your existing INI there when upgrading; its values stay the same. The old settings locations are no longer read, and a missing INI is reported in the plugin log. See [Configuration](#configuration) below.
 
 ## What's new in 1.2.0
 
@@ -27,24 +31,24 @@ This DLL is for Fallout 4 VR. Desktop Fallout 4 and its next-generation executab
 ## Installation and updates
 
 1. Install the requirements and launch the game through F4SEVR.
-2. Install `RobCo_Patcher_VR-v1.2.0.zip` with your mod manager. If prompted to select the game-data directory, choose the archive's `Data` folder. For manual installation, merge that folder into the game's `Data` folder.
+2. Install `RobCo_Patcher_VR-v1.2.1.zip` with your mod manager. If prompted to select the game-data directory, choose the archive's `Data` folder. For manual installation, merge that folder into the game's `Data` folder.
 3. Confirm the installed plugin path is `Data\F4SE\Plugins\RobCo_Patcher.dll`.
 4. Keep your patch-rule mods installed. Their rules belong under `Data\F4SE\Plugins\RobCo_Patcher\`, in the appropriate category folders.
 5. Configure the category switches described below, then restart the game to apply the rules.
 
-When upgrading, replace the old DLL and preserve your existing settings and patch-rule files. The release archive contains the DLL, README, changelog, license, and project image; it does not supply or overwrite runtime INIs or patch rules. The GitHub ZIP is also the package intended for Nexus distribution.
+When upgrading, replace the old DLL, move your settings INI as described below, and preserve your patch-rule files. The release archive contains the DLL, README, changelog, license, and project image; it does not supply or overwrite runtime INIs or patch rules. The GitHub ZIP is also the package intended for Nexus distribution.
 
 ## Configuration
 
-The preferred settings file is:
+The runtime settings file is:
 
 ```text
-Documents\My Games\Fallout4VR\RobCo_Patcher.ini
+Documents\My Games\Fallout4VR\Mods_Config\RobCo_Patcher\RobCo_Patcher.ini
 ```
 
-If that file is absent, an existing `Data\F4SE\Plugins\RobCo_Patcher.ini` is used as a legacy fallback. If both exist, the Documents file takes precedence; the files are not merged. Move an existing legacy settings file to the preferred location if desired, preserving its values.
+This is the only runtime settings location. When upgrading from 1.2.0 or earlier, create the `Mods_Config\RobCo_Patcher` folder and move your existing `RobCo_Patcher.ini` there, preserving its contents. Previous installations may have stored the file directly under `Documents\My Games\Fallout4VR` or under `Data\F4SE\Plugins`. Those locations are no longer read. If the new location already contains your settings, keep that file; settings are not merged or migrated automatically.
 
-For a new installation, create the settings file and enable the categories your patch rules use under **`[Patcher]`**. Missing switches default to `0` (disabled), and the plugin does not create this file automatically. This example enables all supported categories:
+For a new installation, create the folder and settings file, then enable the categories your patch rules use under **`[Patcher]`**. Missing switches default to `0` (disabled), and the plugin does not create this file automatically. A missing settings file is reported in the plugin log. This example enables all supported categories:
 
 ```ini
 [Patcher]

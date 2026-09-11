@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <fstream>
 #include <memory>
+#include <stdexcept>
 #include <string_view>
 
 namespace
@@ -37,7 +38,6 @@ namespace
 	constexpr std::string_view kFeaturesSection = "Features";
 	constexpr std::string_view kDiagnosticsSection = "Diagnostics";
 	constexpr std::string_view kRulesRoot = ".\\Data\\F4SE\\Plugins\\RobCo_Patcher\\";
-	constexpr std::string_view kLegacyIni = ".\\Data\\F4SE\\Plugins\\RobCo_Patcher.ini";
 
 	std::filesystem::path g_configPath;
 	std::shared_ptr<spdlog::logger> g_log;
@@ -101,20 +101,14 @@ namespace
 
 	std::filesystem::path ResolveConfigPath()
 	{
-		PWSTR documentsPath = nullptr;
-		if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &documentsPath)) && documentsPath) {
-			std::filesystem::path primary(documentsPath);
-			CoTaskMemFree(documentsPath);
-			primary /= "My Games/Fallout4VR/RobCo_Patcher.ini";
-			if (std::filesystem::exists(primary) || !std::filesystem::exists(kLegacyIni)) {
-				return primary;
-			}
-			logger::warn(
-				FMT_STRING("Using legacy runtime INI {}; move it to {}"),
-				kLegacyIni,
-				primary.string());
+		PWSTR rawDocumentsPath = nullptr;
+		const auto result = SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &rawDocumentsPath);
+		const std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> documentsPath(rawDocumentsPath, &CoTaskMemFree);
+		if (FAILED(result) || !documentsPath) {
+			throw std::runtime_error("Could not resolve the Documents known folder for RobCo Patcher configuration");
 		}
-		return std::filesystem::path(kLegacyIni);
+		return std::filesystem::path(documentsPath.get()) /
+			"My Games/Fallout4VR/Mods_Config/RobCo_Patcher/RobCo_Patcher.ini";
 	}
 
 	int ReadSetting(std::string_view section, std::string_view key, int defaultValue = 0)
@@ -135,6 +129,9 @@ namespace
 	{
 		g_configPath = ResolveConfigPath();
 		logger::info(FMT_STRING("Runtime INI: {}"), g_configPath.string());
+		if (!std::filesystem::exists(g_configPath)) {
+			logger::warn("Runtime INI is missing; patch categories default to disabled. Create the file at the logged path or move your existing settings there");
+		}
 
 		if (ReadSetting(kLogSection, "iEnablelog") != 0) {
 			g_log->set_level(spdlog::level::debug);
