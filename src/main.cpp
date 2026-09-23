@@ -20,6 +20,7 @@
 #include "object_races.h"
 #include "object_weapons.h"
 #include "utility.h"
+#include "RuntimeConfig.h"
 
 #include <spdlog/sinks/rotating_file_sink.h>
 
@@ -113,11 +114,11 @@ namespace
 
 	int ReadSetting(std::string_view section, std::string_view key, int defaultValue = 0)
 	{
-		return GetPrivateProfileIntA(
-			std::string(section).c_str(),
-			std::string(key).c_str(),
+		return GetPrivateProfileIntW(
+			std::wstring(section.begin(), section.end()).c_str(),
+			std::wstring(key.begin(), key.end()).c_str(),
 			defaultValue,
-			g_configPath.string().c_str());
+			g_configPath.c_str());
 	}
 
 	bool IsEnabled(std::string_view key)
@@ -129,8 +130,8 @@ namespace
 	{
 		g_configPath = ResolveConfigPath();
 		logger::info(FMT_STRING("Runtime INI: {}"), g_configPath.string());
-		if (!std::filesystem::exists(g_configPath)) {
-			logger::warn("Runtime INI is missing; patch categories default to disabled. Create the file at the logged path or move your existing settings there");
+		if (RuntimeConfig::EnsureExists(g_configPath)) {
+			logger::info("Created missing runtime INI from compiled defaults; patch categories are enabled");
 		}
 
 		if (ReadSetting(kLogSection, "iEnablelog") != 0) {
@@ -238,8 +239,10 @@ namespace
 		} endLoadGuard;
 
 		LoadAliases();
-		const bool eslAvailable = InitializeFormResolver();
-		logger::info("{}", eslAvailable ? "Daytripper ESL resolver is ready" : "ESL resolver unavailable; light-plugin lookups will fail closed");
+		if (!InitializeFormResolver()) {
+			logger::error("Patch pass skipped: loaded-file resolution failed validation");
+			return;
+		}
 		GAMEFORMS::DefineGameForms();
 
 		if (IsEnabled("iEnableAmmoPatching")) RunCategory("ammo", [] { AMMOS::readConfig(RulePath("ammo")); });

@@ -1,9 +1,11 @@
 #include "utility.h"
 #include "EngineAdapters.h"
+#include "LoadedFileIndex.h"
 
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <mutex>
@@ -136,22 +138,10 @@ namespace
 {
 	constexpr RE::TESFormID kFullFormMask = 0x00FFFFFF;
 	constexpr RE::TESFormID kSmallFormMask = 0x00000FFF;
-	constexpr RE::TESFormID kSmallFormPrefix = 0xFE000000;
 	constexpr std::uint32_t kMaximumNormalFiles = 0xFE;
 	constexpr std::uint32_t kMaximumSmallFiles = 0x1000;
 	constexpr std::size_t kPluginFilenameCapacity = 260;
 	constexpr std::size_t kMaximumPluginNameLength = kPluginFilenameCapacity - 1;
-
-	using GetCompiledFileCollection = const RE::TESFileCollection* (*)();
-	struct DaytripperModuleCandidate
-	{
-		const wchar_t* moduleName;
-		std::string_view displayName;
-	};
-	constexpr std::array kDaytripperModuleCandidates{
-		DaytripperModuleCandidate{ L"Daytripper4.dll", "Daytripper4.dll" },
-		DaytripperModuleCandidate{ L"falloutvresl.dll", "falloutvresl.dll" }
-	};
 
 	bool g_formResolverInitialized = false;
 	std::unordered_map<std::string, RE::TESForm*> g_formCache;
@@ -159,9 +149,9 @@ namespace
 	struct LoadedFileResolution
 	{
 		const RE::TESFile* file{ nullptr };
-		bool isFullPlugin{ false };
 		bool isSmallPlugin{ false };
 	};
+	std::unordered_map<std::string, LoadedFileResolution> g_loadedFiles;
 
 	bool IsReadableMemory(const void* address, std::size_t bytes)
 	{
@@ -210,114 +200,79 @@ namespace
 			_strnicmp(file->filename, pluginName.data(), pluginName.size()) == 0;
 	}
 
-	bool ValidateDaytripperCollection(const RE::TESFileCollection* collection)
+	bool BuildLoadedFileIndex()
 	{
-		if (!IsReadableMemory(collection, sizeof(RE::TESFileCollection))) {
-			logger::error("Daytripper returned an unreadable TESFileCollection");
+		// GetListFile (14011D060) and FindAndInsertFiles (14011DCD0)
+		// agree on the native list at +FB0 and node {file,next} at +0/+8.
+		// Use loaded TESFile indices rather than a version-specific DLL export.
+		static_assert(offsetof(RE::TESDataHandler, files) == 0xFB0);
+		struct FileNode { RE::TESFile* file; const void* next; };
+		static_assert(sizeof(FileNode) == 0x10);
+		const auto base = REL::Module::get().base();
+		constexpr std::array<std::uint8_t, 7> listSignature{0x48, 0x8D, 0x99, 0xB0, 0x0F, 0x00, 0x00};
+		if (!EngineAdapters::IsSupportedRuntime() ||
+			std::memcmp(reinterpret_cast<const void*>(base + 0x11D072), listSignature.data(), listSignature.size()) != 0) {
+			logger::error("Loaded-file resolver: native list layout signature rejected");
 			return false;
 		}
-
-		const auto normalCount = collection->files.size();
-		const auto smallCount = collection->smallFiles.size();
-		if (normalCount == 0 || normalCount > kMaximumNormalFiles || smallCount > kMaximumSmallFiles) {
-			logger::error(
-				FMT_STRING("Rejected Daytripper collection with implausible counts: normal={}, light={}"),
-				normalCount,
-				smallCount);
+		auto* handler = RE::TESDataHandler::GetSingleton(false);
+		if (!IsReadableMemory(handler, offsetof(RE::TESDataHandler, files) + sizeof(FileNode))) {
+			logger::error("Loaded-file resolver: TESDataHandler is unavailable or unreadable");
 			return false;
 		}
-
-		if (!IsReadableMemory(collection->files.data(), normalCount * sizeof(RE::TESFile*)) ||
-			(smallCount > 0 && !IsReadableMemory(collection->smallFiles.data(), smallCount * sizeof(RE::TESFile*)))) {
-			logger::error("Rejected Daytripper collection with unreadable array storage");
-			return false;
-		}
-
-		std::unordered_set<const RE::TESFile*> uniqueFiles;
-		std::unordered_set<std::uint8_t> normalIndices;
-		std::unordered_set<std::uint16_t> smallIndices;
-		uniqueFiles.reserve(normalCount + smallCount);
-
-		for (const auto* file : collection->files) {
-			if (!HasPlausibleFilename(file) || file->compileIndex >= 0xFE || file->IsLight() ||
-				!uniqueFiles.emplace(file).second || !normalIndices.emplace(file->compileIndex).second) {
-				logger::error("Rejected Daytripper collection because a normal plugin entry is invalid");
+		std::unordered_map<std::string, LoadedFileResolution> files;
+		std::unordered_set<const void*> visited;
+		std::array<bool, kMaximumNormalFiles> fullIndices{};
+		std::array<bool, kMaximumSmallFiles> lightIndices{};
+		std::size_t fullCount = 0;
+		std::size_t lightCount = 0;
+		const void* node = &handler->files;
+		for (std::size_t index = 0; node; ++index) {
+			if (index >= 65536 || !IsReadableMemory(node, sizeof(FileNode)) || !visited.insert(node).second) {
+				logger::error(FMT_STRING("Loaded-file resolver: invalid/cyclic file-list node {}"), index);
 				return false;
 			}
-		}
-
-		for (const auto* file : collection->smallFiles) {
-			if (!HasPlausibleFilename(file) || file->compileIndex != 0xFE || !file->IsLight() ||
-				file->smallFileCompileIndex >= kMaximumSmallFiles || !uniqueFiles.emplace(file).second ||
-				!smallIndices.emplace(file->smallFileCompileIndex).second) {
-				logger::error("Rejected Daytripper collection because a light plugin entry is invalid");
+			FileNode current{};
+			std::memcpy(&current, node, sizeof(current));
+			node = current.next;
+			const auto* file = current.file;
+			if (!file) continue;
+			if (!IsReadableMemory(file, sizeof(RE::TESFile))) {
+				logger::error(FMT_STRING("Loaded-file resolver: unreadable TESFile at node {}"), index);
 				return false;
 			}
+			const auto domain = LoadedFiles::Classify(file->compileIndex, file->smallFileCompileIndex, file->IsLight());
+			if (domain == LoadedFiles::Domain::inactive) continue;
+			if (domain == LoadedFiles::Domain::invalid || !HasPlausibleFilename(file)) {
+				logger::error(FMT_STRING("Loaded-file resolver: invalid filename/index domain at node {}"), index);
+				return false;
+			}
+			const bool small = domain == LoadedFiles::Domain::light;
+			auto& occupied = small ? lightIndices[file->smallFileCompileIndex] : fullIndices[file->compileIndex];
+			const auto name = toLowerCase(std::string(file->GetFilename()));
+			if (occupied || !files.emplace(name, LoadedFileResolution{file, small}).second) {
+				logger::error(FMT_STRING("Loaded-file resolver: duplicate loaded identity/index for {}"), name);
+				return false;
+			}
+			occupied = true;
+			if (small) ++lightCount; else ++fullCount;
 		}
-
-		logger::info(
-			FMT_STRING("Validated Daytripper compiled-file collection: {} normal, {} light plugins"),
-			normalCount,
-			smallCount);
+		if (fullCount == 0) {
+			logger::error("Loaded-file resolver: native list contains no loaded full plugins");
+			return false;
+		}
+		// TESFile objects and assigned indices live for the session. Publish only
+		// after the complete GameDataReady snapshot passes validation.
+		g_loadedFiles = std::move(files);
+		logger::info(FMT_STRING("Loaded-file resolver ready: {} full, {} light plugins (native file metadata)"), fullCount, lightCount);
 		return true;
-	}
-
-	const RE::TESFileCollection* ResolveDaytripperCollection()
-	{
-		const DaytripperModuleCandidate* selectedCandidate = nullptr;
-		HMODULE selectedModule = nullptr;
-		for (const auto& candidate : kDaytripperModuleCandidates) {
-			if (const auto module = GetModuleHandleW(candidate.moduleName)) {
-				if (selectedModule && module != selectedModule) {
-					logger::critical(
-						FMT_STRING("Both {} and {} are loaded; refusing an ambiguous Daytripper provider"),
-						selectedCandidate->displayName,
-						candidate.displayName);
-					return nullptr;
-				}
-				selectedCandidate = &candidate;
-				selectedModule = module;
-			}
-		}
-
-		if (!selectedModule || !selectedCandidate) {
-			logger::warn(
-				"Daytripper is not loaded under Daytripper4.dll or falloutvresl.dll; ESL form resolution is unavailable");
-			return nullptr;
-		}
-
-		const auto address = GetProcAddress(selectedModule, "GetCompiledFileCollectionExtern");
-		if (!address) {
-			logger::error(
-				FMT_STRING("Daytripper module {} does not export GetCompiledFileCollectionExtern; ESL form resolution is unavailable"),
-				selectedCandidate->displayName);
-			return nullptr;
-		}
-
-		const auto getCollection = reinterpret_cast<GetCompiledFileCollection>(address);
-		const auto* collection = getCollection();
-		if (!ValidateDaytripperCollection(collection)) {
-			return nullptr;
-		}
-		logger::info(FMT_STRING("Using Daytripper ESL provider {}"), selectedCandidate->displayName);
-		return collection;
 	}
 
 	LoadedFileResolution ResolveLoadedFile(RE::TESDataHandler* dataHandler, std::string_view pluginName)
 	{
-		if (!dataHandler || pluginName.empty()) {
-			return {};
-		}
-
-		if (const auto* fullPlugin = dataHandler->LookupLoadedModByName(pluginName)) {
-			return { fullPlugin, true, false };
-		}
-
-		if (const auto* lightPlugin = dataHandler->LookupLoadedLightModByName(pluginName)) {
-			return { lightPlugin, false, true };
-		}
-
-		return {};
+		if (!dataHandler || pluginName.empty()) return {};
+		const auto found = g_loadedFiles.find(toLowerCase(std::string(pluginName)));
+		return found != g_loadedFiles.end() ? found->second : LoadedFileResolution{};
 	}
 
 	RE::TESFormID BuildRuntimeFormID(const LoadedFileResolution& resolution, RE::TESFormID rawFormID)
@@ -326,32 +281,20 @@ namespace
 			return 0;
 		}
 
-		if (resolution.isFullPlugin) {
-			return (static_cast<RE::TESFormID>(resolution.file->compileIndex) << 24) | (rawFormID & kFullFormMask);
-		}
-
-		return kSmallFormPrefix |
-			((static_cast<RE::TESFormID>(resolution.file->smallFileCompileIndex) & 0x0FFF) << 12) |
-			(rawFormID & kSmallFormMask);
+		return LoadedFiles::FormID(resolution.file->compileIndex, resolution.file->smallFileCompileIndex,
+			resolution.isSmallPlugin, rawFormID).value_or(0);
 	}
 }
 
 bool InitializeFormResolver()
 {
 	if (g_formResolverInitialized) {
-		return RE::TESDataHandler::VRcompiledFileCollection != nullptr;
+		return !g_loadedFiles.empty();
 	}
 
 	g_formResolverInitialized = true;
 	g_formCache.clear();
-	RE::TESDataHandler::VRcompiledFileCollection = nullptr;
-
-	const auto* collection = ResolveDaytripperCollection();
-	if (collection) {
-		RE::TESDataHandler::VRcompiledFileCollection = const_cast<RE::TESFileCollection*>(collection);
-	}
-
-	return collection != nullptr;
+	return BuildLoadedFileIndex();
 }
 
 bool FormMatchesModNames(const RE::TESForm* form, const std::vector<std::string>& modNames)

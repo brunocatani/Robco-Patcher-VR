@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 # ---- Project Info ----
 set(NAME "RobCo_Patcher")
-set(VERSION 1.2.1)
+set(VERSION 1.2.2)
 
 message(">>> Start build for '${NAME}' v${VERSION}")
 
@@ -140,6 +140,11 @@ if(POST_BUILD_COPY_PLUGIN)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(RuntimeConfigTests tests/RuntimeConfigTests.cpp "${SOURCE_DIR}/RuntimeConfig.cpp")
+    target_compile_features(RuntimeConfigTests PRIVATE cxx_std_23)
+    target_include_directories(RuntimeConfigTests PRIVATE "${SOURCE_DIR}")
+    target_compile_definitions(RuntimeConfigTests PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+    add_test(NAME RuntimeConfigTests COMMAND RuntimeConfigTests)
     add_executable(PatchDiagnosticsTests
         tests/PatchDiagnosticsTests.cpp
         "${SOURCE_DIR}/PatchDiagnostics.cpp"
