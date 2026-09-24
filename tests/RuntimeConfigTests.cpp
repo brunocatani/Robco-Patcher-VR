@@ -10,8 +10,12 @@ int main()
 {
 	const auto directory = std::filesystem::temp_directory_path() /
 		(L"RobCoConfigTests-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
-	const auto path = directory / L"Config-\u00e9" / L"RobCo_Patcher.ini";
+	const auto gameDirectory = directory / L"Game-\u00e9";
+	const auto path = RuntimeConfig::PathFromGameDirectory(gameDirectory);
 	try {
+		if (path != gameDirectory / L"Data" / L"F4SE" / L"Plugins" / L"RobCo_Patcher.ini") {
+			throw std::runtime_error("Runtime INI does not use the original plugin location");
+		}
 		using LoadedFiles::Classify;
 		using LoadedFiles::Domain;
 		using LoadedFiles::FormID;
@@ -54,6 +58,9 @@ int main()
 		if (!failed) throw std::runtime_error("Creation failure was silently accepted");
 		std::filesystem::remove(path);
 		std::filesystem::remove(path.parent_path());
+		std::filesystem::remove(path.parent_path().parent_path());
+		std::filesystem::remove(gameDirectory / L"Data");
+		std::filesystem::remove(gameDirectory);
 		std::filesystem::remove(directory);
 		std::cout << "First-run defaults, preservation, recreation, and full/light FormIDs passed\n";
 		return 0;
@@ -62,6 +69,9 @@ int main()
 		std::error_code ignored;
 		std::filesystem::remove(path, ignored);
 		std::filesystem::remove(path.parent_path(), ignored);
+		std::filesystem::remove(path.parent_path().parent_path(), ignored);
+		std::filesystem::remove(gameDirectory / L"Data", ignored);
+		std::filesystem::remove(gameDirectory, ignored);
 		std::filesystem::remove(directory, ignored);
 		return 1;
 	}

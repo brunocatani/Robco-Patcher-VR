@@ -1,7 +1,6 @@
 #include "EngineAdapters.h"
 #include "PCH.h"
 
-#include <ShlObj.h>
 
 #include "gameforms.h"
 #include "object_aimModel.h"
@@ -100,18 +99,6 @@ namespace
 		}
 	}
 
-	std::filesystem::path ResolveConfigPath()
-	{
-		PWSTR rawDocumentsPath = nullptr;
-		const auto result = SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &rawDocumentsPath);
-		const std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> documentsPath(rawDocumentsPath, &CoTaskMemFree);
-		if (FAILED(result) || !documentsPath) {
-			throw std::runtime_error("Could not resolve the Documents known folder for RobCo Patcher configuration");
-		}
-		return std::filesystem::path(documentsPath.get()) /
-			"My Games/Fallout4VR/Mods_Config/RobCo_Patcher/RobCo_Patcher.ini";
-	}
-
 	int ReadSetting(std::string_view section, std::string_view key, int defaultValue = 0)
 	{
 		return GetPrivateProfileIntW(
@@ -128,7 +115,7 @@ namespace
 
 	void ConfigureRuntime()
 	{
-		g_configPath = ResolveConfigPath();
+		g_configPath = RuntimeConfig::ResolvePath();
 		logger::info(FMT_STRING("Runtime INI: {}"), g_configPath.string());
 		if (RuntimeConfig::EnsureExists(g_configPath)) {
 			logger::info("Created missing runtime INI from compiled defaults; patch categories are enabled");

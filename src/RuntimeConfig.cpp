@@ -68,6 +68,21 @@ namespace RuntimeConfig
 		}
 	}
 
+	std::filesystem::path PathFromGameDirectory(const std::filesystem::path& gameDirectory)
+	{
+		return gameDirectory / "Data" / "F4SE" / "Plugins" / "RobCo_Patcher.ini";
+	}
+
+	std::filesystem::path ResolvePath()
+	{
+		std::array<wchar_t, 32768> executable{};
+		const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+		if (length == 0 || length == executable.size()) {
+			throw std::runtime_error("Cannot resolve the game directory for RobCo Patcher configuration");
+		}
+		return PathFromGameDirectory(std::filesystem::path(executable.data()).parent_path());
+	}
+
 	bool EnsureExists(const std::filesystem::path& path)
 	{
 		if (std::filesystem::is_regular_file(path)) return false;
