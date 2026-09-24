@@ -109,15 +109,7 @@ add_custom_target(verify_fo4vr_loader
 )
 add_dependencies(${PROJECT_NAME} verify_fo4vr_loader)
 
-# ---- Post build ----
-add_custom_command(
-    TARGET ${PROJECT_NAME}
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${ROOT_DIR}/package/Data/F4SE/Plugins"
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> "${ROOT_DIR}/package/Data/F4SE/Plugins/"
-    COMMENT "Packaging ${PROJECT_NAME}..."
-)
-
+# ---- Local deployment ----
 option(POST_BUILD_COPY_PLUGIN "Deploy the plugin to an MO2 mod directory" OFF)
 set(COPY_PLUGIN_BASE_PATH "" CACHE PATH "MO2 mod directory used by custom-fast")
 if(POST_BUILD_COPY_PLUGIN)
